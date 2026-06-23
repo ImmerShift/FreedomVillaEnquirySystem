@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-fv-app-bg text-ink-900 font-sans antialiased m-0;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #9FB0BE;
+  }
+  /* date pickers match the design */
+  input[type="date"] {
+    font-family: 'Raleway', sans-serif;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.4;
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* ---- surfaces ---- */
+  .fv-card {
+    @apply bg-fv-card border border-fv-card-border rounded-[9px] shadow-[0_1px_3px_rgba(30,58,95,0.05)];
+  }
+  .fv-section-label {
+    @apply text-[12px] font-semibold tracking-[2.5px] uppercase text-fv-accent-deep;
+  }
+  .fv-field-label {
+    @apply text-[11px] font-semibold tracking-[0.8px] uppercase text-ink-400;
+  }
+
+  /* ---- inputs: colour code mirrors the Excel manual ---- */
+  /* blue — Rob types it */
+  .fv-input {
+    @apply text-[15px] text-ink-900 bg-fv-type-bg border border-fv-type-border rounded-[5px] px-3.5 py-3 outline-none transition-all;
+  }
+  .fv-input:focus {
+    @apply bg-white;
+    border-color: #3F77AC;
+    box-shadow: 0 0 0 3px rgba(63, 119, 172, 0.16);
+  }
+  /* green — pulled in from another tab */
+  .fv-pull {
+    @apply text-[15px] font-semibold text-ink-900 bg-fv-pull-bg border border-fv-pull-border rounded-[5px] px-3.5 py-3;
+  }
+  /* teal — calculated, read only */
+  .fv-calc {
+    @apply text-[15px] font-semibold text-fv-ink bg-fv-accent-soft border border-fv-accent-soft-border rounded-[5px] px-3.5 py-3;
+  }
+
+  /* ---- buttons ---- */
+  .btn-accent {
+    @apply text-[13px] font-semibold tracking-[0.4px] text-white bg-fv-accent border border-fv-accent rounded-md px-6 py-3 cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.14)] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-accent:hover:not(:disabled) {
+    filter: brightness(0.93);
+  }
+  .btn-ghost {
+    @apply text-[13px] font-semibold tracking-[0.4px] text-fv-ink bg-white border border-[#C5D2D2] rounded-md px-5 py-3 cursor-pointer transition-all hover:border-fv-ink disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+}
+
+/* ---- print: only the document sheet, with colours preserved ---- */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+}
