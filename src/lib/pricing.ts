@@ -22,6 +22,8 @@ export interface PricingInput {
   taxMode?: string; // "inclusive" | "added"
   taxRate?: number; // % government tax & service
   applyTax?: boolean; // resolved per-booking (settings default ± override)
+  savingMode?: string; // "auto" | "rack" | "manual"
+  otaPct?: number; // % OTAs charge on top (for "auto" saving)
 }
 
 export interface PricingResult {
@@ -29,10 +31,12 @@ export interface PricingResult {
   seasonName: string; // '—' when no season matches
   seasonalRate: number | null; // AUD (direct rate)
   agentRate: number | null; // AUD (agent rate for the matched season)
+  rackRate: number | null; // AUD (rack/OTA rate for the matched season)
   minNights: number | null;
   rateUsed: number; // AUD
   rateSource: "SEASONAL" | "AGENT" | "OVERRIDE" | "—";
   accommodation: number; // AUD
+  directSavingAuto: number; // AUD (auto-computed "you save by booking direct")
   additionalTotal: number; // AUD
   taxAmount: number; // AUD (0 when inclusive / not applied)
   grandTotal: number; // AUD (incl. tax if added)
@@ -69,6 +73,10 @@ export function computePricing(input: PricingInput): PricingResult {
     season && season.agent_rate != null && season.agent_rate > 0
       ? season.agent_rate
       : null;
+  const rackRate =
+    season && season.rack_rate != null && season.rack_rate > 0
+      ? season.rack_rate
+      : null;
   const minNights = season ? season.minimum_nights : null;
 
   const hasOverride = input.override != null && input.override > 0;
@@ -100,6 +108,17 @@ export function computePricing(input: PricingInput): PricingResult {
   const deposit = Math.round((grandTotal * (input.depositPct || 0)) / 100);
   const balance = grandTotal - (input.amountPaid || 0);
 
+  // "you save by booking direct" — computed per the chosen mode
+  const savingMode = input.savingMode || "auto";
+  let directSavingAuto = 0;
+  if (savingMode === "rack") {
+    if (rackRate != null && rackRate > rateUsed) {
+      directSavingAuto = Math.round((rackRate - rateUsed) * nights);
+    }
+  } else if (savingMode !== "manual") {
+    directSavingAuto = Math.round((accommodation * (input.otaPct || 0)) / 100);
+  }
+
   const minMet =
     minNights == null || nights === 0 ? null : nights >= minNights;
 
@@ -108,10 +127,12 @@ export function computePricing(input: PricingInput): PricingResult {
     seasonName: season ? season.name : "—",
     seasonalRate,
     agentRate,
+    rackRate,
     minNights,
     rateUsed,
     rateSource,
     accommodation,
+    directSavingAuto,
     additionalTotal,
     taxAmount,
     grandTotal,

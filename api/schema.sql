@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS seasons (
   end_date       DATE         NOT NULL,
   nightly_rate   DECIMAL(12,2) NOT NULL,        -- AUD
   agent_rate     DECIMAL(12,2) NULL,            -- AUD; null = no agent rate
+  rack_rate      DECIMAL(12,2) NULL,            -- AUD; OTA/rack rate for direct-saving calc
   minimum_nights INT          NOT NULL DEFAULT 1,
   sort_order     INT          DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -171,6 +172,8 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('tax_rate',            '16'),
   ('tax_show',            'total'),
   ('tax_allow_override',  '0'),
+  ('saving_mode',         'auto'),
+  ('ota_commission_pct',  '15'),
   ('inclusions',          '5 expansive bedroom suites (3 can split to singles)\n1,000m² of beautifully manicured grounds\nPrivate onsite commercial-grade gym\nDaily chef-prepared breakfasts\nComplimentary airport transfers\nFull staff: butlers, security, villa manager, ground crew');
 
 INSERT IGNORE INTO fx_rates (code, name, rate_per_aud, sort_order) VALUES

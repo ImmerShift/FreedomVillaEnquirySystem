@@ -69,13 +69,13 @@ export function Settings() {
     );
   const persistSeason = async (
     id: number,
-    field: "name" | "start_date" | "end_date" | "nightly_rate" | "agent_rate" | "minimum_nights"
+    field: "name" | "start_date" | "end_date" | "nightly_rate" | "agent_rate" | "rack_rate" | "minimum_nights"
   ) => {
     const row = seasons.find((r) => r.id === id);
     if (!row) return;
     const raw = row[field];
     const value =
-      field === "nightly_rate" || field === "agent_rate" || field === "minimum_nights"
+      field === "nightly_rate" || field === "agent_rate" || field === "rack_rate" || field === "minimum_nights"
         ? num(String(raw))
         : String(raw);
     await updateSeasonField(id, field, value);
@@ -154,6 +154,12 @@ export function Settings() {
       {...props}
     />
   );
+
+  const savingMode = settings.saving_mode ?? "auto";
+  const showRack = savingMode === "rack";
+  const seasonGrid = showRack
+    ? "grid-cols-[96px_1fr_1fr_82px_82px_82px_50px_22px]"
+    : "grid-cols-[100px_1fr_1fr_92px_92px_56px_28px]";
 
   return (
     <div className="max-w-[880px] mx-auto">
@@ -309,6 +315,47 @@ export function Settings() {
         </label>
       </section>
 
+      {/* DIRECT-BOOKING SAVING */}
+      <section className="fv-card p-7 mb-6">
+        <SectionHeader>Direct-Booking Saving</SectionHeader>
+        <div className="text-[12.5px] text-[#8794A0] mb-4 leading-[1.6]">
+          The "you save by booking direct" figure printed on quotations. Pick how it's worked out —
+          it then fills in automatically on every request.
+        </div>
+        <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+          <Field label="How is the saving calculated?">
+            <select
+              className="fv-input cursor-pointer appearance-none"
+              value={savingMode}
+              onChange={(e) => { setLocal("saving_mode", e.target.value); saveSetting("saving_mode", e.target.value).then(() => flash("Saved")); }}
+            >
+              <option value="auto">Automatic — a % above your direct rate</option>
+              <option value="rack">From a rack / OTA rate per season</option>
+              <option value="manual">I'll type it each time</option>
+            </select>
+          </Field>
+          {savingMode === "auto" && (
+            <Field label="% OTAs charge above direct">
+              <div className="flex items-center fv-input !py-0 !px-3.5">
+                <input
+                  inputMode="numeric"
+                  className="flex-1 min-w-0 border-none outline-none bg-transparent py-3 text-[15px]"
+                  value={settings.ota_commission_pct ?? "15"}
+                  onChange={(e) => setLocal("ota_commission_pct", e.target.value)}
+                  onBlur={() => persist("ota_commission_pct")}
+                />
+                <span className="text-[14px] text-[#9FB0BE]">%</span>
+              </div>
+            </Field>
+          )}
+          {savingMode === "rack" && (
+            <div className="flex items-end text-[12.5px] text-[#8794A0] leading-[1.5] pb-2">
+              Set a <b className="text-[#5E6B75]">&nbsp;Rack&nbsp;</b> rate per season in the table below — the saving is that rate minus your direct rate, per night.
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* PAYMENT DETAILS */}
       <section className="fv-card p-7 mb-6">
         <SectionHeader>Payment Details</SectionHeader>
@@ -360,12 +407,13 @@ export function Settings() {
           Rates in <b className="text-[#5E6B75]">AUD / night</b>. The <b className="text-[#5E6B75]">Agent</b> rate
           is used automatically when a booking's source is "Agent" — it never appears on guest documents.
         </div>
-        <div className="grid grid-cols-[100px_1fr_1fr_92px_92px_56px_28px] gap-2.5 px-1 pb-2.5 border-b border-[#E6EDED]">
+        <div className={`grid ${seasonGrid} gap-2.5 px-1 pb-2.5 border-b border-[#E6EDED]`}>
           <Col>Season</Col>
           <Col>From</Col>
           <Col>To</Col>
           <Col className="text-right">Direct</Col>
           <Col className="text-right">Agent</Col>
+          {showRack && <Col className="text-right">Rack</Col>}
           <Col className="text-center">Min</Col>
           <span />
         </div>
@@ -374,7 +422,7 @@ export function Settings() {
           return (
             <div
               key={s.id}
-              className="grid grid-cols-[100px_1fr_1fr_92px_92px_56px_28px] gap-2.5 items-center py-2.5 border-b border-[#EEF4F4]"
+              className={`grid ${seasonGrid} gap-2.5 items-center py-2.5 border-b border-[#EEF4F4]`}
             >
               <input
                 className="fv-input !py-2 !px-3 !text-[12px] font-bold uppercase tracking-[0.6px] text-center rounded-full"
@@ -418,6 +466,19 @@ export function Settings() {
                   onBlur={() => persistSeason(s.id, "agent_rate")}
                 />
               </div>
+              {showRack && (
+                <div className="flex items-center fv-input !py-0 !px-2.5">
+                  <span className="text-[11px] text-[#9FB0BE] mr-0.5">A$</span>
+                  <input
+                    inputMode="numeric"
+                    placeholder="—"
+                    className="flex-1 min-w-0 border-none outline-none bg-transparent py-2 text-right text-[13px] font-semibold"
+                    value={s.rack_rate ?? ""}
+                    onChange={(e) => setSeasonLocal(s.id, "rack_rate", e.target.value)}
+                    onBlur={() => persistSeason(s.id, "rack_rate")}
+                  />
+                </div>
+              )}
               <input
                 inputMode="numeric"
                 className="fv-input !py-2 !px-2 !text-[13px] text-center"

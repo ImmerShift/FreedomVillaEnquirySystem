@@ -71,6 +71,7 @@ const SEASON_FIELDS = new Set([
   "end_date",
   "nightly_rate",
   "agent_rate",
+  "rack_rate",
   "minimum_nights",
 ]);
 

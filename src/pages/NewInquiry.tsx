@@ -110,6 +110,8 @@ export function NewInquiry() {
   const taxRate = num(settings.tax_rate || "16");
   const taxAllowOverride = settings.tax_allow_override === "1";
   const applyTax = taxMode === "added" ? applyTaxOverride ?? true : false;
+  const savingMode = settings.saving_mode || "auto";
+  const otaPct = num(settings.ota_commission_pct || "15");
 
   const pricingCharges: Charge[] = charges.map((c) => ({
     desc: c.desc,
@@ -131,12 +133,16 @@ export function NewInquiry() {
         taxMode,
         taxRate,
         applyTax,
+        savingMode,
+        otaPct,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [checkIn, checkOut, seasons, override, amountPaid, depositPct, source, taxMode, taxRate, applyTax, JSON.stringify(charges)]
+    [checkIn, checkOut, seasons, override, amountPaid, depositPct, source, taxMode, taxRate, applyTax, savingMode, otaPct, JSON.stringify(charges)]
   );
 
   const fmt = useMemo(() => makeFormatter(currency, fxRates), [currency, fxRates]);
+  // saving printed on the quote: auto-computed unless Rob chose manual entry
+  const savingUsed = savingMode === "manual" ? num(saving) : p.directSavingAuto;
 
   const fxRate = fxRates.find((f) => f.code === currency)?.rate_per_aud;
   const showFxNote = currency !== "AUD" && fxRate != null;
@@ -176,7 +182,7 @@ export function NewInquiry() {
           override_rate: override.trim() === "" ? null : num(override),
           applied_rate: p.rateUsed,
           rate_source: p.rateSource,
-          direct_saving: num(saving),
+          direct_saving: savingUsed,
           accommodation_total: p.accommodation,
           additional_total: p.additionalTotal,
           grand_total: p.grandTotal,
@@ -381,9 +387,28 @@ export function NewInquiry() {
               </span>
             </div>
           </div>
-          <Field label="Direct-booking saving (shown on quote)">
-            <MoneyInput value={saving} onChange={setSaving} placeholder="0" />
-          </Field>
+          {savingMode === "manual" ? (
+            <Field label="Direct-booking saving (shown on quote)">
+              <MoneyInput value={saving} onChange={setSaving} placeholder="0" />
+            </Field>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-semibold tracking-[0.8px] uppercase text-fv-accent-label">
+                Direct-booking saving
+              </span>
+              <div className="flex items-center justify-between fv-calc">
+                <span>{fmt(savingUsed)}</span>
+                <span className="text-[9px] font-bold tracking-[1.4px] text-fv-accent-deep">
+                  {savingMode === "rack" ? "RACK" : "AUTO"}
+                </span>
+              </div>
+              <span className="text-[10.5px] text-[#9AA7AE]">
+                {savingMode === "rack"
+                  ? "Rack rate − direct rate, per night"
+                  : `${otaPct}% vs booking direct`}
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

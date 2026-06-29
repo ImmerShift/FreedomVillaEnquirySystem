@@ -62,17 +62,17 @@ try {
     case 'seasons': {
       if ($method === 'GET') {
         $rows = $db->query("SELECT * FROM seasons ORDER BY sort_order, start_date")->fetchAll();
-        fv_send(fv_numify($rows, ['nightly_rate','agent_rate','minimum_nights','sort_order','id']));
+        fv_send(fv_numify($rows, ['nightly_rate','agent_rate','rack_rate','minimum_nights','sort_order','id']));
       }
       if ($method === 'POST') {
         $db->exec("INSERT INTO seasons (name,start_date,end_date,nightly_rate,minimum_nights,sort_order)
                    VALUES ('Low','','',1300,3,(SELECT COALESCE(MAX(sort_order),0)+1 FROM (SELECT * FROM seasons) s))");
         $id = (int) $db->lastInsertId();
         $row = $db->query("SELECT * FROM seasons WHERE id = $id")->fetch();
-        fv_send(fv_numify([$row], ['nightly_rate','agent_rate','minimum_nights','sort_order','id'])[0]);
+        fv_send(fv_numify([$row], ['nightly_rate','agent_rate','rack_rate','minimum_nights','sort_order','id'])[0]);
       }
       if ($method === 'PATCH' && $r1) {
-        $allowed = ['name','start_date','end_date','nightly_rate','agent_rate','minimum_nights'];
+        $allowed = ['name','start_date','end_date','nightly_rate','agent_rate','rack_rate','minimum_nights'];
         foreach ($body as $f => $v) {
           if (!in_array($f, $allowed, true)) continue;
           $stmt = $db->prepare("UPDATE seasons SET `$f` = ? WHERE id = ?");

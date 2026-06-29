@@ -268,6 +268,17 @@ Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusio
       "#,
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 12,
+      description: "direct-booking saving: rack rate per season + saving mode",
+      sql: r#"
+        ALTER TABLE seasons ADD COLUMN rack_rate REAL;
+        INSERT OR IGNORE INTO settings (key, value) VALUES
+          ('saving_mode', 'auto'),          -- auto | rack | manual
+          ('ota_commission_pct', '15');
+      "#,
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

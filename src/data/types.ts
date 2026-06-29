@@ -7,6 +7,7 @@ export interface Season {
   end_date: string;
   nightly_rate: number;
   agent_rate: number | null;
+  rack_rate: number | null;
   minimum_nights: number;
   sort_order: number;
 }
