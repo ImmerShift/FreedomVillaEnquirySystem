@@ -14,8 +14,6 @@ import {
   DocEmpty,
   SummaryCell,
   Editable,
-  PrintOrientation,
-  type Orientation,
 } from "../components/doc";
 import { nightsBetween, fmtDate, addDays } from "../lib/pricing";
 import { exportSheetPdf } from "../lib/exportPdf";
@@ -24,7 +22,6 @@ import { exportSheetPdf } from "../lib/exportPdf";
 export function Invoice() {
   const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [paidLive, setPaidLive] = useState<number | null>(null);
-  const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "invoice");
   const docStatus = useDocStatus(data?.booking.id, "invoice");
@@ -51,7 +48,7 @@ export function Invoice() {
   const balanceRemain = booking.grand_total - paid;
   const taxAmount = booking.grand_total - booking.accommodation_total - booking.additional_total;
   const fxOfCurrency = fxRates.find((f) => f.code === currency)?.rate_per_aud;
-  const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
+  const sheetMax = "max-w-[1000px]";
 
   const paymentNote = edits.get("payment_note", settings.bank_details || "");
   const terms = edits.get(
@@ -76,15 +73,12 @@ export function Invoice() {
 
   return (
     <div className={`${sheetMax} mx-auto`}>
-      <PrintOrientation orientation={orientation} />
       <DocToolbar
         title="Invoice"
         currency={currency}
         setCurrency={setCurrency}
         editing={edits.editing}
         onToggleEdit={toggleEdit}
-        orientation={orientation}
-        setOrientation={setOrientation}
         onSavePdf={savePdf}
         guests={bookings}
         activeId={data.booking.id}
@@ -219,7 +213,6 @@ export function Invoice() {
 export function Receipt() {
   const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [paidLive, setPaidLive] = useState<number | null>(null);
-  const [orientation, setOrientation] = useState<Orientation>("portrait");
   const edits = useDocEdits(data?.booking.id, "receipt");
   const toggleEdit = async () => {
     if (edits.editing) await edits.save();
@@ -242,20 +235,17 @@ export function Receipt() {
   const receiptNo = `RCT-${year}-${String(booking.id).padStart(4, "0")}`;
   const totalPaid = paidLive ?? booking.amount_paid;
   const balanceRemain = booking.grand_total - totalPaid;
-  const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
+  const sheetMax = "max-w-[1000px]";
   const thanks = edits.get("thanks", "Received with thanks. We look forward to welcoming you.");
 
   return (
     <div className={`${sheetMax} mx-auto`}>
-      <PrintOrientation orientation={orientation} />
       <DocToolbar
         title="Receipt"
         currency={currency}
         setCurrency={setCurrency}
         editing={edits.editing}
         onToggleEdit={toggleEdit}
-        orientation={orientation}
-        setOrientation={setOrientation}
         onSavePdf={savePdf}
         guests={bookings}
         activeId={data.booking.id}

@@ -71,6 +71,7 @@
   /* margin:0 removes the browser's auto URL/date header & footer
      (the sheet's own padding provides the printed margin) */
   @page {
+    size: A4 portrait;
     margin: 0;
   }
   * {

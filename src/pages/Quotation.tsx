@@ -7,11 +7,9 @@ import {
   useDocStatus,
   GuestPicker,
   Editable,
-  PrintOrientation,
   DocControls,
   DocStatusBar,
   SendModal,
-  type Orientation,
 } from "../components/doc";
 import { CurrencySelect } from "../components/CurrencySelect";
 import { exportSheetPdf } from "../lib/exportPdf";
@@ -48,7 +46,6 @@ const addDays = (iso: string, days: number): string => {
 export function Quotation() {
   const navigate = useNavigate();
   const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
-  const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "quotation");
   const docStatus = useDocStatus(data?.booking.id, "quotation");
@@ -138,11 +135,8 @@ export function Quotation() {
   const checkInTime = settings.villa_checkin_time || "3:00 PM";
   const checkOutTime = settings.villa_checkout_time || "11:00 AM";
   const logoSrc = settings.doc_logo || brandLogo;
-  const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
-
   return (
-    <div className={`${sheetMax} mx-auto`}>
-      <PrintOrientation orientation={orientation} />
+    <div className="max-w-[1000px] mx-auto">
       {/* toolbar — not printed */}
       <div className="no-print flex items-end justify-between gap-6 mb-[26px]">
         <div>
@@ -157,7 +151,7 @@ export function Quotation() {
             fxRates={fxRates}
             triggerClassName="flex items-center gap-2 text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-3 py-2.5 cursor-pointer outline-none"
           />
-          <DocControls editing={edits.editing} onToggleEdit={toggleEdit} orientation={orientation} setOrientation={setOrientation} />
+          <DocControls editing={edits.editing} onToggleEdit={toggleEdit} />
           <button className="btn-ghost" onClick={() => navigate("/inquiry")}>Back to Request</button>
           <button className="btn-accent" onClick={savePdf} disabled={edits.editing}>Save PDF</button>
         </div>

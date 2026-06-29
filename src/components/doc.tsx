@@ -30,7 +30,6 @@ import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
 import docHeader from "../assets/doc-header-v2.png";
 
-export type Orientation = "portrait" | "landscape";
 
 /** Loads the active booking + settings + fx + the guest list, and lets the doc
  *  screens switch which guest/booking they're showing. */
@@ -215,49 +214,25 @@ export function Editable({
   return <div className={`whitespace-pre-line ${className}`}>{value}</div>;
 }
 
-/** Injects the @page size so the print dialog defaults to the chosen orientation. */
-export function PrintOrientation({ orientation }: { orientation: Orientation }) {
-  return <style>{`@media print { @page { size: A4 ${orientation}; margin: 0; } }`}</style>;
-}
-
-/** Small Edit/Done + Portrait/Landscape control cluster for document toolbars. */
+/** Edit / Done toggle for document toolbars. */
 export function DocControls({
   editing,
   onToggleEdit,
-  orientation,
-  setOrientation,
 }: {
   editing: boolean;
   onToggleEdit: () => void;
-  orientation: Orientation;
-  setOrientation: (o: Orientation) => void;
 }) {
   return (
-    <>
-      <div className="flex rounded-md border border-[#C5D2D2] overflow-hidden">
-        {(["portrait", "landscape"] as Orientation[]).map((o) => (
-          <button
-            key={o}
-            onClick={() => setOrientation(o)}
-            className={`text-[12px] font-semibold px-3 py-2.5 transition-colors ${
-              orientation === o ? "bg-fv-accent-soft text-fv-accent-deep" : "bg-white text-[#7A8790] hover:bg-[#F2F8F8]"
-            }`}
-          >
-            {o === "portrait" ? "Portrait" : "Landscape"}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={onToggleEdit}
-        className={`text-[13px] font-semibold rounded-md px-4 py-2.5 border transition-colors ${
-          editing
-            ? "text-white bg-fv-accent border-fv-accent"
-            : "text-fv-ink bg-white border-[#C5D2D2] hover:border-fv-ink"
-        }`}
-      >
-        {editing ? "Done" : "Edit"}
-      </button>
-    </>
+    <button
+      onClick={onToggleEdit}
+      className={`text-[13px] font-semibold rounded-md px-4 py-2.5 border transition-colors ${
+        editing
+          ? "text-white bg-fv-accent border-fv-accent"
+          : "text-fv-ink bg-white border-[#C5D2D2] hover:border-fv-ink"
+      }`}
+    >
+      {editing ? "Done" : "Edit"}
+    </button>
   );
 }
 
@@ -269,8 +244,6 @@ export function DocToolbar({
   showCurrency = true,
   editing,
   onToggleEdit,
-  orientation,
-  setOrientation,
   onSavePdf,
   guests,
   activeId,
@@ -283,8 +256,6 @@ export function DocToolbar({
   showCurrency?: boolean;
   editing?: boolean;
   onToggleEdit?: () => void;
-  orientation?: Orientation;
-  setOrientation?: (o: Orientation) => void;
   onSavePdf?: () => void;
   guests?: GuestStayRow[];
   activeId?: number;
@@ -292,7 +263,6 @@ export function DocToolbar({
   fxRates?: FxRate[];
 }) {
   const navigate = useNavigate();
-  const hasControls = onToggleEdit && setOrientation && orientation;
   return (
     <div className="no-print flex items-end justify-between gap-6 mb-[26px]">
       <div>
@@ -313,14 +283,7 @@ export function DocToolbar({
             triggerClassName="flex items-center gap-2 text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-3 py-2.5 cursor-pointer outline-none"
           />
         )}
-        {hasControls && (
-          <DocControls
-            editing={!!editing}
-            onToggleEdit={onToggleEdit!}
-            orientation={orientation!}
-            setOrientation={setOrientation!}
-          />
-        )}
+        {onToggleEdit && <DocControls editing={!!editing} onToggleEdit={onToggleEdit} />}
         <button className="btn-ghost" onClick={() => navigate("/inquiry")}>
           Back to Request
         </button>
