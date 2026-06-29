@@ -330,7 +330,7 @@ export function Settings() {
               onChange={(e) => { setLocal("saving_mode", e.target.value); saveSetting("saving_mode", e.target.value).then(() => flash("Saved")); }}
             >
               <option value="auto">Automatic — a % above your direct rate</option>
-              <option value="rack">From a rack / OTA rate per season</option>
+              <option value="rack">From a published rate per season</option>
               <option value="manual">I'll type it each time</option>
             </select>
           </Field>
@@ -350,7 +350,7 @@ export function Settings() {
           )}
           {savingMode === "rack" && (
             <div className="flex items-end text-[12.5px] text-[#8794A0] leading-[1.5] pb-2">
-              Set a <b className="text-[#5E6B75]">&nbsp;Rack&nbsp;</b> rate per season in the table below — the saving is that rate minus your direct rate, per night.
+              Set a <b className="text-[#5E6B75]">&nbsp;Published&nbsp;</b> rate per season in the table below — the saving is that rate minus your direct rate, per night.
             </div>
           )}
         </div>
@@ -413,7 +413,7 @@ export function Settings() {
           <Col>To</Col>
           <Col className="text-right">Direct</Col>
           <Col className="text-right">Agent</Col>
-          {showRack && <Col className="text-right">Rack</Col>}
+          {showRack && <Col className="text-right">Published</Col>}
           <Col className="text-center">Min</Col>
           <span />
         </div>

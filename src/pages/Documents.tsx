@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useDocData,
   useDocEdits,
@@ -6,6 +6,7 @@ import {
   logoFrom,
   DocToolbar,
   DocStatusBar,
+  PaymentsPanel,
   SendModal,
   DocSheet,
   DocLetterhead,
@@ -17,21 +18,11 @@ import {
   type Orientation,
 } from "../components/doc";
 import { nightsBetween, fmtDate, addDays } from "../lib/pricing";
-import {
-  loadPayments,
-  addPayment,
-  deletePayment,
-  type Payment,
-} from "../db";
-
-const parseAmt = (s: string): number => {
-  const n = parseFloat((s || "").replace(/,/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
 
 // ============ INVOICE ============
 export function Invoice() {
   const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
+  const [paidLive, setPaidLive] = useState<number | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "invoice");
@@ -55,7 +46,8 @@ export function Invoice() {
   const dueDate = addDays(issued, dueDays);
   const year = (issued || "").slice(0, 4) || new Date().getFullYear();
   const invoiceNo = `INV-${year}-${String(booking.id).padStart(4, "0")}`;
-  const balanceRemain = booking.grand_total - booking.amount_paid;
+  const paid = paidLive ?? booking.amount_paid;
+  const balanceRemain = booking.grand_total - paid;
   const taxAmount = booking.grand_total - booking.accommodation_total - booking.additional_total;
   const fxOfCurrency = fxRates.find((f) => f.code === currency)?.rate_per_aud;
   const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
@@ -106,6 +98,7 @@ export function Invoice() {
         settings={settings}
         onSent={docStatus.markSent}
       />
+      <PaymentsPanel bookingId={booking.id} grandTotal={booking.grand_total} fmt={fmt} onTotalChange={setPaidLive} />
       <DocSheet>
         <DocLetterhead logoSrc={logoFrom(settings)} title="Invoice" />
 
@@ -223,12 +216,7 @@ export function Invoice() {
 // ============ RECEIPT ============
 export function Receipt() {
   const { data, settings, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [amt, setAmt] = useState("");
-  const [kind, setKind] = useState("Balance");
-  const [paidOn, setPaidOn] = useState(new Date().toISOString().slice(0, 10));
-  const [method, setMethod] = useState("Bank transfer");
-  const [note, setNote] = useState("");
+  const [paidLive, setPaidLive] = useState<number | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const edits = useDocEdits(data?.booking.id, "receipt");
   const toggleEdit = async () => {
@@ -242,15 +230,6 @@ export function Receipt() {
     window.print();
   };
 
-  const bookingId = data?.booking.id;
-  const refreshPayments = useCallback(async () => {
-    if (bookingId == null) return;
-    setPayments(await loadPayments(bookingId));
-  }, [bookingId]);
-  useEffect(() => {
-    refreshPayments();
-  }, [refreshPayments]);
-
   if (!loaded) return null;
   if (!data) return <DocEmpty title="Receipt" />;
 
@@ -259,23 +238,10 @@ export function Receipt() {
   const issued = booking.inquiry_date || booking.created_at?.slice(0, 10) || "";
   const year = (issued || "").slice(0, 4) || new Date().getFullYear();
   const receiptNo = `RCT-${year}-${String(booking.id).padStart(4, "0")}`;
-  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+  const totalPaid = paidLive ?? booking.amount_paid;
   const balanceRemain = booking.grand_total - totalPaid;
   const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
   const thanks = edits.get("thanks", "Received with thanks. We look forward to welcoming you.");
-
-  const onAddPayment = async () => {
-    const a = parseAmt(amt);
-    if (a === 0) return;
-    await addPayment({ booking_id: booking.id, amount: a, kind, method, paid_on: paidOn, note });
-    setAmt("");
-    setNote("");
-    refreshPayments();
-  };
-  const onDeletePayment = async (id: number) => {
-    await deletePayment(id, booking.id);
-    refreshPayments();
-  };
 
   return (
     <div className={`${sheetMax} mx-auto`}>
@@ -303,46 +269,7 @@ export function Receipt() {
         onSent={docStatus.markSent}
       />
 
-      {/* payments ledger — screen only, not printed */}
-      <div className="no-print fv-card p-6 mb-6">
-        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <span className="fv-section-label">Payments</span>
-          <div className="flex items-center gap-4 text-[13px]">
-            <span className="text-[#5E6B75]">Received <b className="text-fv-accent-deep font-semibold">{fmt(totalPaid)}</b></span>
-            <span className="text-[#5E6B75]">Balance <b className="text-fv-alert font-semibold">{fmt(balanceRemain)}</b></span>
-          </div>
-        </div>
-
-        {payments.length > 0 && (
-          <div className="mb-4">
-            {payments.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 py-2 border-b border-[#F0F4F4] text-[13px]">
-                <span className="text-[#7A8790] w-[92px] flex-none">{fmtDate(p.paid_on || "")}</span>
-                <span className="font-semibold text-[#3F4B55] w-[80px] flex-none">{p.kind}</span>
-                <span className="text-[#7A8790] flex-1 min-w-0 truncate">{[p.method, p.note].filter(Boolean).join(" · ")}</span>
-                <span className="font-semibold text-fv-ink flex-none">{fmt(p.amount)}</span>
-                <button onClick={() => onDeletePayment(p.id)} className="text-[16px] text-[#B8C5C5] hover:text-[#C0392B] flex-none leading-none">×</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* add payment */}
-        <div className="grid grid-cols-[120px_120px_140px_1fr_auto] gap-2.5 items-center">
-          <div className="flex items-center bg-fv-type-bg border border-fv-type-border rounded-[5px] px-3">
-            <span className="text-[13px] text-[#9FB0BE] mr-1">A$</span>
-            <input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" className="flex-1 min-w-0 border-none outline-none bg-transparent py-2.5 text-[14px] text-ink-900" />
-          </div>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} className="fv-input !py-2.5 !text-[13px] appearance-none cursor-pointer">
-            <option>Deposit</option>
-            <option>Balance</option>
-            <option>Other</option>
-          </select>
-          <input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className="fv-input !py-2 !text-[13px]" />
-          <input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="Method / note" className="fv-input !py-2.5 !text-[13px]" />
-          <button onClick={onAddPayment} className="btn-accent !py-2.5">Add</button>
-        </div>
-      </div>
+      <PaymentsPanel bookingId={booking.id} grandTotal={booking.grand_total} fmt={fmt} onTotalChange={setPaidLive} />
 
       <DocSheet>
         <DocLetterhead logoSrc={logoFrom(settings)} title="Receipt" />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -12,12 +12,16 @@ import {
   loadDocStatus,
   markDocPdf,
   markDocSent,
+  loadPayments,
+  addPayment,
+  deletePayment,
   type FullBooking,
   type FxRate,
   type Settings,
   type Guest,
   type DocStatus,
   type GuestStayRow,
+  type Payment,
 } from "../db";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, fmtDate } from "../lib/pricing";
@@ -67,7 +71,7 @@ export function useDocData() {
   return { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick };
 }
 
-/** Dropdown to switch which guest/booking a document is generated for. */
+/** Searchable picker to switch which guest/booking a document is generated for. */
 export function GuestPicker({
   bookings,
   activeId,
@@ -77,23 +81,79 @@ export function GuestPicker({
   activeId: number | undefined;
   onPick: (id: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const current = bookings.find((b) => b.id === activeId);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   if (bookings.length === 0) return null;
+  const s = q.trim().toLowerCase();
+  const filtered = s
+    ? bookings.filter((b) => `${b.guest_name} ${b.email || ""}`.toLowerCase().includes(s))
+    : bookings;
+
   return (
-    <label className="flex items-center gap-2">
-      <span className="text-[10px] font-bold tracking-[1.4px] uppercase text-[#9AA7AE]">Guest</span>
-      <select
-        value={activeId ?? ""}
-        onChange={(e) => onPick(Number(e.target.value))}
-        className="text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-8 py-2.5 cursor-pointer outline-none appearance-none max-w-[230px] truncate"
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-2.5 py-2.5 cursor-pointer max-w-[230px]"
         title="Switch guest"
       >
-        {bookings.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.guest_name} · {fmtDate(b.check_in)}
-          </option>
-        ))}
-      </select>
-    </label>
+        <span className="text-[10px] font-bold tracking-[1.2px] uppercase text-[#9AA7AE]">Guest</span>
+        <span className="truncate">{current ? current.guest_name : "Select…"}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9FB0BE" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="flex-none">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-40 mt-1.5 w-[290px] bg-white border border-[#E2EAEA] rounded-xl shadow-[0_16px_40px_rgba(27,58,91,0.18)] p-2">
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name or email…"
+            className="fv-input !py-2 !text-[13px] w-full mb-2"
+          />
+          <div className="max-h-[280px] overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-2.5 py-3 text-[12.5px] text-[#9AA7AE] italic">No matching guest.</div>
+            ) : (
+              filtered.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { onPick(b.id); setOpen(false); setQ(""); }}
+                  className={`w-full text-left px-2.5 py-2 rounded-md transition-colors ${
+                    b.id === activeId ? "bg-fv-accent-soft" : "hover:bg-[#F4FBFB]"
+                  }`}
+                >
+                  <div className="text-[13.5px] font-semibold text-fv-ink truncate">{b.guest_name}</div>
+                  <div className="text-[11.5px] text-[#9AA7AE] truncate">
+                    {[b.email, fmtDate(b.check_in)].filter(Boolean).join(" · ")}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -267,6 +327,93 @@ export function DocToolbar({
         >
           Save PDF
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** Screen-only payments ledger for a booking. Used on the Invoice and Receipt.
+ *  Amounts are entered/stored in AUD; `fmt` converts for display. Reports the
+ *  running total up via `onTotalChange` so the doc's balance stays live. */
+export function PaymentsPanel({
+  bookingId,
+  grandTotal,
+  fmt,
+  onTotalChange,
+}: {
+  bookingId: number;
+  grandTotal: number;
+  fmt: (n: number) => string;
+  onTotalChange?: (total: number) => void;
+}) {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [amt, setAmt] = useState("");
+  const [kind, setKind] = useState("Balance");
+  const [paidOn, setPaidOn] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState("Bank transfer");
+
+  const refresh = useCallback(async () => {
+    const ps = await loadPayments(bookingId);
+    setPayments(ps);
+    onTotalChange?.(ps.reduce((s, p) => s + p.amount, 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+  const balance = grandTotal - total;
+
+  const add = async () => {
+    const a = parseFloat((amt || "").replace(/,/g, ""));
+    if (!Number.isFinite(a) || a === 0) return;
+    await addPayment({ booking_id: bookingId, amount: a, kind, method, paid_on: paidOn, note: "" });
+    setAmt("");
+    refresh();
+  };
+  const remove = async (id: number) => {
+    await deletePayment(id, bookingId);
+    refresh();
+  };
+
+  return (
+    <div className="no-print fv-card p-6 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <span className="fv-section-label">Payments</span>
+        <div className="flex items-center gap-4 text-[13px]">
+          <span className="text-[#5E6B75]">Received <b className="text-fv-accent-deep font-semibold">{fmt(total)}</b></span>
+          <span className="text-[#5E6B75]">Balance <b className="text-fv-alert font-semibold">{fmt(balance)}</b></span>
+        </div>
+      </div>
+
+      {payments.length > 0 && (
+        <div className="mb-4">
+          {payments.map((p) => (
+            <div key={p.id} className="flex items-center gap-3 py-2 border-b border-[#F0F4F4] text-[13px]">
+              <span className="text-[#7A8790] w-[92px] flex-none">{fmtDate(p.paid_on || "")}</span>
+              <span className="font-semibold text-[#3F4B55] w-[80px] flex-none">{p.kind}</span>
+              <span className="text-[#7A8790] flex-1 min-w-0 truncate">{[p.method, p.note].filter(Boolean).join(" · ")}</span>
+              <span className="font-semibold text-fv-ink flex-none">{fmt(p.amount)}</span>
+              <button onClick={() => remove(p.id)} className="text-[16px] text-[#B8C5C5] hover:text-[#C0392B] flex-none leading-none">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-[120px_120px_140px_1fr_auto] gap-2.5 items-center">
+        <div className="flex items-center bg-fv-type-bg border border-fv-type-border rounded-[5px] px-3">
+          <span className="text-[13px] text-[#9FB0BE] mr-1">A$</span>
+          <input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="0" className="flex-1 min-w-0 border-none outline-none bg-transparent py-2.5 text-[14px] text-ink-900" />
+        </div>
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className="fv-input !py-2.5 !text-[13px] appearance-none cursor-pointer">
+          <option>Deposit</option>
+          <option>Balance</option>
+          <option>Other</option>
+        </select>
+        <input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className="fv-input !py-2 !text-[13px]" />
+        <input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="Method / note" className="fv-input !py-2.5 !text-[13px]" />
+        <button onClick={add} className="btn-accent !py-2.5">Add</button>
       </div>
     </div>
   );

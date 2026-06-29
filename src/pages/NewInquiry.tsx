@@ -441,13 +441,13 @@ export function NewInquiry() {
               <div className="flex items-center justify-between fv-calc">
                 <span>{fmt(savingUsed)}</span>
                 <span className="text-[9px] font-bold tracking-[1.4px] text-fv-accent-deep">
-                  {savingMode === "rack" ? "RACK" : "AUTO"}
+                  {savingMode === "rack" ? "PUBLISHED" : "AUTO"}
                 </span>
               </div>
               <span className="text-[10.5px] text-[#9AA7AE]">
                 {savingMode === "rack"
-                  ? "Rack rate − direct rate, per night"
-                  : `${otaPct}% vs booking direct`}
+                  ? "Published rate − direct rate"
+                  : `${otaPct}% off published rate`}
               </span>
             </div>
           )}
