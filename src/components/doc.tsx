@@ -28,7 +28,7 @@ import { makeFormatter, fmtDate } from "../lib/pricing";
 import { CurrencySelect } from "./CurrencySelect";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
-import docHeader from "../assets/doc-header.png";
+import docHeader from "../assets/doc-header-v2.png";
 
 export type Orientation = "portrait" | "landscape";
 
@@ -583,17 +583,20 @@ export function DocSheet({ children }: { children: ReactNode }) {
  *  gold Cinzel title laid over its white left area. */
 export function DocLetterhead({ logoSrc, title }: { logoSrc: string; title: string }) {
   return (
-    <div className="relative -mx-[68px] -mt-16 mb-9">
-      <img src={docHeader} alt="" className="w-full block" />
-      <div className="absolute inset-y-0 left-0 flex items-center" style={{ width: "70%" }}>
-        <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[150px] h-auto flex-none ml-[68px]" />
-        <div className="flex-1 flex flex-col items-center mr-6">
-          <div className="font-display text-[28px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
+    <div className="relative mb-9">
+      {/* photo accent bleeding into the sheet's top-right corner */}
+      <img src={docHeader} alt="Freedom Villa" className="absolute -top-16 -right-[68px] h-[150px] w-auto" />
+      {/* logo + gold title on the left */}
+      <div className="relative flex items-center gap-5 h-[100px]">
+        <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[150px] h-auto flex-none" />
+        <div className="flex flex-col">
+          <div className="font-display text-[30px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
             {title}
           </div>
-          <div className="w-[100px] h-0.5 mt-2.5" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
+          <div className="w-[110px] h-0.5 mt-3" style={{ background: "linear-gradient(90deg,#C9A14E,transparent)" }} />
         </div>
       </div>
+      <div className="h-px mt-2" style={{ background: "linear-gradient(90deg,#E4C998,transparent)" }} />
     </div>
   );
 }

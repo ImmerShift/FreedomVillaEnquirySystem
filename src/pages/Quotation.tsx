@@ -16,7 +16,7 @@ import {
 import { CurrencySelect } from "../components/CurrencySelect";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
-import docHeader from "../assets/doc-header.png";
+import docHeader from "../assets/doc-header-v2.png";
 
 const DEFAULT_INCLUSIONS =
   "5 expansive bedroom suites (3 can split to singles)\n" +
@@ -168,17 +168,20 @@ export function Quotation() {
       {/* THE DOCUMENT SHEET — single A4 page */}
       <div className="print-sheet bg-white border border-[#E7ECEC] rounded-[4px] shadow-[0_10px_40px_rgba(27,58,91,0.10)] px-[52px] py-[40px]">
         {/* full-bleed banner letterhead — logo + title over the photo header */}
-        <div className="relative -mx-[52px] -mt-10 mb-5">
-          <img src={docHeader} alt="" className="w-full block" />
-          <div className="absolute inset-y-0 left-0 flex items-center" style={{ width: "70%" }}>
-            <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[120px] h-auto flex-none ml-[52px]" />
-            <div className="flex-1 flex flex-col items-center mr-5">
+        <div className="relative mb-4">
+          {/* photo accent bleeding into the sheet's top-right corner */}
+          <img src={docHeader} alt="Freedom Villa" className="absolute -top-10 -right-[52px] h-[118px] w-auto" />
+          {/* logo + gold title on the left */}
+          <div className="relative flex items-center gap-4 h-[80px]">
+            <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[120px] h-auto flex-none" />
+            <div className="flex flex-col">
               <div className="font-display text-[22px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
                 Quotation
               </div>
-              <div className="w-[80px] h-0.5 mt-2" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
+              <div className="w-[80px] h-0.5 mt-2" style={{ background: "linear-gradient(90deg,#C9A14E,transparent)" }} />
             </div>
           </div>
+          <div className="h-px mt-1.5" style={{ background: "linear-gradient(90deg,#E4C998,transparent)" }} />
         </div>
 
         {/* meta row */}
