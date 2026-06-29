@@ -1,0 +1,18 @@
+# Route every request to the front controller, and make sure the
+# Authorization header survives (some cPanel/CGI setups strip it).
+
+RewriteEngine On
+
+# Preserve the bearer token across the CGI boundary.
+RewriteCond %{HTTP:Authorization} ^(.*)$
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%1]
+
+# Send anything that isn't a real file/dir to index.php.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Never serve the secrets or the SQL dump.
+<FilesMatch "^(config\.php|schema\.sql)$">
+  Require all denied
+</FilesMatch>
