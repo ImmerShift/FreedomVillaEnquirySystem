@@ -26,9 +26,9 @@ import {
 import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, fmtDate } from "../lib/pricing";
 import { CurrencySelect } from "./CurrencySelect";
-import brandLogo from "../assets/brand/logo-freedomvilla.png";
-import robSignature from "../assets/brand/rob-signature-trim.png";
-import docHeader from "../assets/doc-header-v2.png";
+import brandLogo from "../assets/brand/logo-freedomvilla.png?inline";
+import robSignature from "../assets/brand/rob-signature-trim.png?inline";
+import docHeader from "../assets/doc-header-v2.png?inline";
 
 
 /** Loads the active booking + settings + fx + the guest list, and lets the doc

@@ -13,9 +13,9 @@ import {
 } from "../components/doc";
 import { CurrencySelect } from "../components/CurrencySelect";
 import { exportSheetPdf } from "../lib/exportPdf";
-import brandLogo from "../assets/brand/logo-freedomvilla.png";
-import robSignature from "../assets/brand/rob-signature-trim.png";
-import docHeader from "../assets/doc-header-v2.png";
+import brandLogo from "../assets/brand/logo-freedomvilla.png?inline";
+import robSignature from "../assets/brand/rob-signature-trim.png?inline";
+import docHeader from "../assets/doc-header-v2.png?inline";
 
 const DEFAULT_INCLUSIONS =
   "5 expansive bedroom suites (3 can split to singles)\n" +
