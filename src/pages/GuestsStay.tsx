@@ -4,8 +4,13 @@ import {
   loadGuestStays,
   loadFxRates,
   setBookingCancelled,
+  loadFollowups,
+  addFollowup,
+  toggleFollowup,
+  deleteFollowup,
   type GuestStayRow,
   type FxRate,
+  type Followup,
 } from "../db";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, nightsBetween, fmtDate } from "../lib/pricing";
@@ -70,6 +75,36 @@ export function GuestsStay() {
   const [monthF, setMonthF] = useState("");
   const [sourceF, setSourceF] = useState("All");
   const [statusF, setStatusF] = useState("All");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [followups, setFollowups] = useState<Followup[]>([]);
+  const [fuDate, setFuDate] = useState(new Date().toISOString().slice(0, 10));
+  const [fuNote, setFuNote] = useState("");
+
+  const loadFu = async (bookingId: number) => setFollowups(await loadFollowups(bookingId));
+  useEffect(() => {
+    if (expandedId != null) loadFu(expandedId);
+    else setFollowups([]);
+  }, [expandedId]);
+
+  const onAddFu = async () => {
+    if (expandedId == null || !fuNote.trim()) return;
+    await addFollowup(expandedId, fuDate, fuNote.trim());
+    setFuNote("");
+    await loadFu(expandedId);
+    reload();
+  };
+  const onToggleFu = async (id: number, done: boolean) => {
+    await toggleFollowup(id, done);
+    if (expandedId != null) await loadFu(expandedId);
+    reload();
+  };
+  const onDeleteFu = async (id: number) => {
+    await deleteFollowup(id);
+    if (expandedId != null) await loadFu(expandedId);
+    reload();
+  };
+
+  const totalDue = rows.reduce((n, r) => n + (r.followups_due || 0), 0);
 
   const reload = async () => {
     const [r, fx] = await Promise.all([loadGuestStays(), loadFxRates()]);
@@ -125,8 +160,14 @@ export function GuestsStay() {
       <PageTitle
         eyebrow="Pipeline"
         title="Guests Stay"
-        subtitle="Every saved inquiry. Search, filter, then click a guest to load their documents."
+        subtitle="Click a guest to manage follow-ups and open their documents."
       />
+
+      {totalDue > 0 && (
+        <div className="flex items-center gap-2 mb-4 px-4 py-2.5 bg-[#FDF6E8] border border-[#EAD9A8] rounded-lg text-[13px] text-[#8A6D1F]">
+          🔔 <b className="font-semibold">{totalDue}</b> follow-up{totalDue > 1 ? "s" : ""} due today or overdue.
+        </div>
+      )}
 
       {loaded && rows.length > 0 && (
         <div className="flex items-center gap-2.5 mb-4 flex-wrap">
@@ -195,14 +236,16 @@ export function GuestsStay() {
             const quoteSent = !!r.quote_sent_at;
             const cancelled = r.status === "Cancelled";
             const returning = returningEmails.has((r.email || "").trim().toLowerCase());
+            const expanded = expandedId === r.id;
+            const due = r.followups_due || 0;
             return (
-              <div
-                key={r.id}
-                onClick={() => !cancelled && openGuest(r.id)}
-                className={`grid grid-cols-[1.6fr_1.4fr_0.6fr_1fr_1fr_1fr_84px] gap-3.5 items-center px-6 py-[17px] border-b border-[#F0F4F4] transition-colors ${
-                  cancelled ? "bg-[#FBFCFC] opacity-60" : "cursor-pointer hover:bg-[#FAFDFD]"
-                }`}
-              >
+              <div key={r.id}>
+                <div
+                  onClick={() => setExpandedId(expanded ? null : r.id)}
+                  className={`grid grid-cols-[1.6fr_1.4fr_0.6fr_1fr_1fr_1fr_84px] gap-3.5 items-center px-6 py-[17px] border-b border-[#F0F4F4] cursor-pointer transition-colors ${
+                    expanded ? "bg-[#F4FBFB]" : cancelled ? "bg-[#FBFCFC] opacity-60" : "hover:bg-[#FAFDFD]"
+                  }`}
+                >
                 <div>
                   <div className="flex items-center gap-2">
                     <span className={`text-[15px] font-semibold text-fv-ink ${cancelled ? "line-through" : ""}`}>
@@ -216,6 +259,11 @@ export function GuestsStay() {
                     {!cancelled && returning && (
                       <span className="text-[9.5px] font-bold tracking-[0.6px] uppercase text-fv-accent-deep bg-fv-accent-soft border border-fv-accent-soft-border rounded-full px-2 py-0.5">
                         Returning
+                      </span>
+                    )}
+                    {due > 0 && (
+                      <span className="text-[9.5px] font-bold tracking-[0.6px] uppercase text-[#B7841F] bg-[#FDF6E8] border border-[#EAD9A8] rounded-full px-2 py-0.5">
+                        {due} due
                       </span>
                     )}
                   </div>
@@ -250,6 +298,35 @@ export function GuestsStay() {
                     {cancelled ? "Restore" : "Cancel"}
                   </button>
                 </span>
+                </div>
+
+                {expanded && (
+                  <div className="px-6 py-5 bg-[#F8FCFC] border-b border-[#E6EDED]">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="fv-section-label">Follow-ups</span>
+                      <button className="btn-accent !py-2 !px-4" onClick={() => openGuest(r.id)}>
+                        Open documents →
+                      </button>
+                    </div>
+                    {followups.length > 0 && (
+                      <div className="mb-3">
+                        {followups.map((f) => (
+                          <div key={f.id} className="flex items-center gap-3 py-2 border-b border-[#EEF4F4] text-[13px]">
+                            <input type="checkbox" checked={f.done === 1} onChange={(e) => onToggleFu(f.id, e.target.checked)} className="w-4 h-4 accent-[#15A3A0] flex-none" />
+                            <span className={`w-[92px] flex-none ${f.done ? "text-[#B8C5C5]" : "text-[#7A8790]"}`}>{fmtDate(f.due_date || "")}</span>
+                            <span className={`flex-1 min-w-0 ${f.done ? "line-through text-[#B8C5C5]" : "text-[#3F4B55]"}`}>{f.note}</span>
+                            <button onClick={() => onDeleteFu(f.id)} className="text-[16px] text-[#B8C5C5] hover:text-[#C0392B] flex-none leading-none">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-[150px_1fr_auto] gap-2.5">
+                      <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="fv-input !py-2 !text-[13px]" />
+                      <input value={fuNote} onChange={(e) => setFuNote(e.target.value)} placeholder="e.g. Chase balance, send villa guide…" className="fv-input !py-2 !text-[13px]" onKeyDown={(e) => { if (e.key === "Enter") onAddFu(); }} />
+                      <button onClick={onAddFu} className="btn-accent !py-2">Add</button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

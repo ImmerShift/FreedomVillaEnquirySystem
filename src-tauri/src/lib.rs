@@ -235,6 +235,21 @@ Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusio
       "#,
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 10,
+      description: "wave B: follow-up scheduler",
+      sql: r#"
+        CREATE TABLE IF NOT EXISTS follow_ups (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          booking_id INTEGER REFERENCES bookings(id) ON DELETE CASCADE,
+          due_date   TEXT,
+          note       TEXT,
+          done       INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+      "#,
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

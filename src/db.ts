@@ -489,12 +489,52 @@ export interface GuestStayRow {
   personalize_status: string;
   quote_sent_at: string | null;
   status: string;
+  followups_due: number;
 }
 
 export interface ReturningGuest {
   full_name: string;
   check_in: string;
   check_out: string;
+}
+
+export interface Followup {
+  id: number;
+  booking_id: number;
+  due_date: string | null;
+  note: string | null;
+  done: number;
+  created_at: string;
+}
+
+export async function loadFollowups(bookingId: number): Promise<Followup[]> {
+  const db = await getDb();
+  return db.select<Followup[]>(
+    "SELECT * FROM follow_ups WHERE booking_id = $1 ORDER BY done, due_date, id",
+    [bookingId]
+  );
+}
+
+export async function addFollowup(
+  bookingId: number,
+  dueDate: string,
+  note: string
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO follow_ups (booking_id, due_date, note) VALUES ($1,$2,$3)",
+    [bookingId, dueDate, note]
+  );
+}
+
+export async function toggleFollowup(id: number, done: boolean): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE follow_ups SET done = $1 WHERE id = $2", [done ? 1 : 0, id]);
+}
+
+export async function deleteFollowup(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM follow_ups WHERE id = $1", [id]);
 }
 
 /** Most recent prior stay for a guest email (for the returning-guest banner), or null. */
@@ -585,7 +625,9 @@ export async function loadGuestStays(): Promise<GuestStayRow[]> {
            b.check_in, b.check_out, b.num_guests, b.grand_total, b.amount_paid,
            b.currency, COALESCE(b.source, 'Direct (website)') AS source,
            b.status, b.quote_status, b.invoice_status, b.personalize_status,
-           qs.sent_at AS quote_sent_at
+           qs.sent_at AS quote_sent_at,
+           (SELECT COUNT(*) FROM follow_ups f
+              WHERE f.booking_id = b.id AND f.done = 0 AND f.due_date <= date('now')) AS followups_due
     FROM bookings b
     LEFT JOIN guests g ON g.id = b.guest_id
     LEFT JOIN doc_status qs ON qs.booking_id = b.id AND qs.doc_type = 'quotation'
