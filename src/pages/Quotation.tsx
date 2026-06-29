@@ -15,6 +15,7 @@ import {
 } from "../components/doc";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
+import villaPhoto from "../assets/villa-1.jpg";
 
 const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
 
@@ -170,14 +171,18 @@ export function Quotation() {
 
       {/* THE DOCUMENT SHEET — single A4 page */}
       <div className="print-sheet bg-white border border-[#E7ECEC] rounded-[4px] shadow-[0_10px_40px_rgba(27,58,91,0.10)] px-[52px] py-[40px]">
-        {/* letterhead */}
-        <div className="flex flex-col items-center mb-4">
-          <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[100px] h-auto" />
-          <div className="font-display text-[24px] font-semibold tracking-[5px] uppercase leading-none mt-3" style={{ color: "#B68A3E" }}>
-            Quotation
+        {/* letterhead band — logo · title · villa photo */}
+        <div className="flex items-center justify-between gap-4 mb-2.5">
+          <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[112px] h-auto flex-none" />
+          <div className="flex flex-col items-center flex-1">
+            <div className="font-display text-[24px] font-semibold tracking-[5px] uppercase leading-none" style={{ color: "#B68A3E" }}>
+              Quotation
+            </div>
+            <div className="w-[90px] h-0.5 mt-2" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
           </div>
-          <div className="w-[90px] h-0.5 mt-2.5" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
+          <img src={villaPhoto} alt="Freedom Villa" className="w-[124px] h-[56px] object-cover rounded-md flex-none" />
         </div>
+        <div className="h-px mb-3" style={{ background: "linear-gradient(90deg,#E4C998,#E4C998,transparent)" }} />
 
         {/* meta row */}
         <div className="flex items-start justify-between gap-6 mb-3">
@@ -194,8 +199,6 @@ export function Quotation() {
             <div>Valid until: <b className="text-[#3F4B55] font-semibold">{fmtDate(validUntil)}</b></div>
           </div>
         </div>
-        <div className="h-px mb-3" style={{ background: "linear-gradient(90deg,#E4C998,transparent)" }} />
-
         {/* italic intro one-liner */}
         <Editable
           editing={edits.editing}
