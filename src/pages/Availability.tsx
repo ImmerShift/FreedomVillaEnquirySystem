@@ -364,7 +364,7 @@ export function Availability() {
                     </div>
                   )}
                   {isGapStart && (
-                    <div className="absolute bottom-1 right-1.5 text-[8.5px] font-bold" style={{ color: OPEN_TEXT }}>
+                    <div className="absolute top-1 right-1.5 text-[8.5px] font-bold" style={{ color: OPEN_TEXT }}>
                       {gap!.nights} open →
                     </div>
                   )}

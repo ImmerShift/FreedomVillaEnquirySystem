@@ -105,6 +105,8 @@ export function GuestPicker({
   const filtered = s
     ? bookings.filter((b) => `${b.guest_name} ${b.email || ""}`.toLowerCase().includes(s))
     : bookings;
+  const LIMIT = 50;
+  const shown = filtered.slice(0, LIMIT);
 
   return (
     <div className="relative" ref={ref}>
@@ -134,7 +136,7 @@ export function GuestPicker({
             {filtered.length === 0 ? (
               <div className="px-2.5 py-3 text-[12.5px] text-[#9AA7AE] italic">No matching guest.</div>
             ) : (
-              filtered.map((b) => (
+              shown.map((b) => (
                 <button
                   key={b.id}
                   type="button"
@@ -149,6 +151,11 @@ export function GuestPicker({
                   </div>
                 </button>
               ))
+            )}
+            {filtered.length > LIMIT && (
+              <div className="px-2.5 py-2 text-[11.5px] text-[#9AA7AE] italic">
+                Showing {LIMIT} of {filtered.length} — type a name or email to narrow it down.
+              </div>
             )}
           </div>
         </div>

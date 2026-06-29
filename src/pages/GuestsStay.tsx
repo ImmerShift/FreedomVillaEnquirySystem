@@ -365,6 +365,7 @@ export function GuestsStay() {
           confirmLabel="Cancel booking"
           cancelLabel="Keep it"
           danger
+          requireText={confirmCancel.guest_name}
           onConfirm={doCancel}
           onClose={() => setConfirmCancel(null)}
         />
