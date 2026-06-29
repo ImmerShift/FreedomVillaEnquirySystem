@@ -220,6 +220,21 @@ Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusio
       "#,
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 9,
+      description: "wave A: booking source, agent rate, tax settings",
+      sql: r#"
+        ALTER TABLE bookings ADD COLUMN source TEXT DEFAULT 'Direct (website)';
+        ALTER TABLE bookings ADD COLUMN apply_tax INTEGER;
+        ALTER TABLE seasons ADD COLUMN agent_rate REAL;
+        INSERT OR IGNORE INTO settings (key, value) VALUES
+          ('tax_mode', 'inclusive'),
+          ('tax_rate', '16'),
+          ('tax_show', 'total'),
+          ('tax_allow_override', '0');
+      "#,
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

@@ -20,6 +20,7 @@ export interface Season {
   start_date: string;
   end_date: string;
   nightly_rate: number;
+  agent_rate: number | null;
   minimum_nights: number;
   sort_order: number;
 }
@@ -41,6 +42,8 @@ export interface Booking {
   num_guests: number;
   inquiry_date: string;
   currency: string;
+  source: string;
+  apply_tax: number | null;
   override_rate: number | null;
   applied_rate: number;
   rate_source: string;
@@ -124,6 +127,7 @@ const SEASON_FIELDS = new Set([
   "start_date",
   "end_date",
   "nightly_rate",
+  "agent_rate",
   "minimum_nights",
 ]);
 
@@ -186,6 +190,8 @@ export interface SaveInquiryInput {
     num_guests: number;
     inquiry_date: string;
     currency: string;
+    source: string;
+    apply_tax: number | null;
     override_rate: number | null;
     applied_rate: number;
     rate_source: string;
@@ -220,10 +226,10 @@ export async function saveInquiry(input: SaveInquiryInput): Promise<number> {
   const bookingRes = await db.execute(
     `INSERT INTO bookings
       (guest_id, check_in, check_out, num_guests, inquiry_date, currency,
-       override_rate, applied_rate, rate_source, direct_saving,
+       source, apply_tax, override_rate, applied_rate, rate_source, direct_saving,
        accommodation_total, additional_total, grand_total, deposit,
        amount_paid, balance, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
     [
       guestId,
       b.check_in,
@@ -231,6 +237,8 @@ export async function saveInquiry(input: SaveInquiryInput): Promise<number> {
       b.num_guests,
       b.inquiry_date,
       b.currency,
+      b.source,
+      b.apply_tax,
       b.override_rate,
       b.applied_rate,
       b.rate_source,

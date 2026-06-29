@@ -121,6 +121,8 @@ export function Quotation() {
   const balanceArrival = booking.grand_total - booking.deposit;
   const hasSaving = booking.direct_saving > 0;
   const hasCharges = booking.additional_total > 0;
+  const taxAmount = booking.grand_total - booking.accommodation_total - booking.additional_total;
+  const fxOfCurrency = fxRates.find((f) => f.code === currency)?.rate_per_aud;
 
   const lineItems = [
     {
@@ -270,7 +272,13 @@ export function Quotation() {
                 <span className="font-semibold text-[#2B3640] whitespace-nowrap">{fmt(li.amount)}</span>
               </div>
             ))}
-            {hasCharges && (
+            {taxAmount > 0 && (
+              <div className="flex items-baseline justify-between gap-3 py-1 text-[10.5px]">
+                <span className="text-[#5E6B75]">Tax &amp; service ({settings.tax_rate || "16"}%)</span>
+                <span className="font-semibold text-[#2B3640]">{fmt(taxAmount)}</span>
+              </div>
+            )}
+            {(hasCharges || taxAmount > 0) && (
               <div className="flex items-baseline justify-between gap-3 py-1 text-[11px] border-t border-[#EEF1F1] mt-0.5">
                 <span className="font-semibold text-fv-ink">Total</span>
                 <span className="font-bold text-fv-ink">{fmt(booking.grand_total)}</span>
@@ -333,6 +341,13 @@ export function Quotation() {
           onChange={(v) => edits.setField("closing", v)}
           className="text-[10px] italic leading-[1.5] text-[#5E6B75] mb-4"
         />
+
+        {/* currency conversion note */}
+        {currency !== "AUD" && fxOfCurrency != null && (
+          <div className="text-[8px] italic text-[#9AA7AE] mb-2">
+            Amounts shown in {currency}, converted from AUD at 1 AUD = {fxOfCurrency} {currency} on {fmtDate(new Date().toISOString())}.
+          </div>
+        )}
 
         {/* footer — contact LEFT, signature RIGHT */}
         <div className="flex items-end justify-between gap-6 pt-3 border-t border-[#EEF1F1]">

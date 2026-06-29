@@ -18,18 +18,24 @@ export interface PricingInput {
   charges: Charge[];
   amountPaid: number; // AUD
   depositPct: number;
+  source?: string; // booking source; "Agent" triggers the agent rate
+  taxMode?: string; // "inclusive" | "added"
+  taxRate?: number; // % government tax & service
+  applyTax?: boolean; // resolved per-booking (settings default ± override)
 }
 
 export interface PricingResult {
   nights: number;
   seasonName: string; // '—' when no season matches
-  seasonalRate: number | null; // AUD
+  seasonalRate: number | null; // AUD (direct rate)
+  agentRate: number | null; // AUD (agent rate for the matched season)
   minNights: number | null;
   rateUsed: number; // AUD
-  rateSource: "SEASONAL" | "OVERRIDE" | "—";
+  rateSource: "SEASONAL" | "AGENT" | "OVERRIDE" | "—";
   accommodation: number; // AUD
   additionalTotal: number; // AUD
-  grandTotal: number; // AUD
+  taxAmount: number; // AUD (0 when inclusive / not applied)
+  grandTotal: number; // AUD (incl. tax if added)
   deposit: number; // AUD
   balance: number; // AUD
   minMet: boolean | null; // null when not yet determinable
@@ -59,22 +65,38 @@ export function computePricing(input: PricingInput): PricingResult {
   const season = findSeason(input.seasons, input.checkIn);
 
   const seasonalRate = season ? season.nightly_rate : null;
+  const agentRate =
+    season && season.agent_rate != null && season.agent_rate > 0
+      ? season.agent_rate
+      : null;
   const minNights = season ? season.minimum_nights : null;
 
   const hasOverride = input.override != null && input.override > 0;
-  const rateUsed = hasOverride ? (input.override as number) : seasonalRate ?? 0;
-  const rateSource: PricingResult["rateSource"] = hasOverride
-    ? "OVERRIDE"
-    : season
-    ? "SEASONAL"
-    : "—";
+  const useAgent = input.source === "Agent" && agentRate != null;
+
+  let rateUsed = 0;
+  let rateSource: PricingResult["rateSource"] = "—";
+  if (hasOverride) {
+    rateUsed = input.override as number;
+    rateSource = "OVERRIDE";
+  } else if (useAgent) {
+    rateUsed = agentRate as number;
+    rateSource = "AGENT";
+  } else if (season) {
+    rateUsed = seasonalRate as number;
+    rateSource = "SEASONAL";
+  }
 
   const accommodation = nights * rateUsed;
   const additionalTotal = input.charges.reduce(
     (sum, c) => sum + (Number(c.qty) || 0) * (Number(c.unit) || 0),
     0
   );
-  const grandTotal = accommodation + additionalTotal;
+  const preTax = accommodation + additionalTotal;
+  const taxRate = input.taxRate || 0;
+  const taxApplies = input.taxMode === "added" && !!input.applyTax && taxRate > 0;
+  const taxAmount = taxApplies ? Math.round((preTax * taxRate) / 100) : 0;
+  const grandTotal = preTax + taxAmount;
   const deposit = Math.round((grandTotal * (input.depositPct || 0)) / 100);
   const balance = grandTotal - (input.amountPaid || 0);
 
@@ -85,11 +107,13 @@ export function computePricing(input: PricingInput): PricingResult {
     nights,
     seasonName: season ? season.name : "—",
     seasonalRate,
+    agentRate,
     minNights,
     rateUsed,
     rateSource,
     accommodation,
     additionalTotal,
+    taxAmount,
     grandTotal,
     deposit,
     balance,

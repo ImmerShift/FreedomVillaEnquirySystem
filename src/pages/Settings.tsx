@@ -69,13 +69,13 @@ export function Settings() {
     );
   const persistSeason = async (
     id: number,
-    field: "name" | "start_date" | "end_date" | "nightly_rate" | "minimum_nights"
+    field: "name" | "start_date" | "end_date" | "nightly_rate" | "agent_rate" | "minimum_nights"
   ) => {
     const row = seasons.find((r) => r.id === id);
     if (!row) return;
     const raw = row[field];
     const value =
-      field === "nightly_rate" || field === "minimum_nights"
+      field === "nightly_rate" || field === "agent_rate" || field === "minimum_nights"
         ? num(String(raw))
         : String(raw);
     await updateSeasonField(id, field, value);
@@ -254,6 +254,58 @@ export function Settings() {
         </div>
       </section>
 
+      {/* TAX & SERVICE */}
+      <section className="fv-card p-7 mb-6">
+        <SectionHeader>Tax &amp; Service</SectionHeader>
+        <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+          <Field label="How is tax applied to your rates?">
+            <select
+              className="fv-input cursor-pointer appearance-none"
+              value={settings.tax_mode ?? "inclusive"}
+              onChange={(e) => { setLocal("tax_mode", e.target.value); saveSetting("tax_mode", e.target.value).then(() => flash("Saved")); }}
+            >
+              <option value="inclusive">Inclusive — already in my rate</option>
+              <option value="added">Added on top — calculated &amp; added</option>
+            </select>
+          </Field>
+          {(settings.tax_mode ?? "inclusive") === "added" && (
+            <Field label="% government tax &amp; service">
+              <div className="flex items-center fv-input !py-0 !px-3.5">
+                <input
+                  inputMode="numeric"
+                  className="flex-1 min-w-0 border-none outline-none bg-transparent py-3 text-[15px]"
+                  value={settings.tax_rate ?? "16"}
+                  onChange={(e) => setLocal("tax_rate", e.target.value)}
+                  onBlur={() => persist("tax_rate")}
+                />
+                <span className="text-[14px] text-[#9FB0BE]">%</span>
+              </div>
+            </Field>
+          )}
+          <Field label="Show tax on documents?" full>
+            <select
+              className="fv-input cursor-pointer appearance-none"
+              value={settings.tax_show ?? "total"}
+              onChange={(e) => { setLocal("tax_show", e.target.value); saveSetting("tax_show", e.target.value).then(() => flash("Saved")); }}
+            >
+              <option value="total">Show total only, with inclusive note</option>
+              <option value="line_item">Show tax as a separate line item</option>
+            </select>
+          </Field>
+        </div>
+        <label className="flex items-center gap-2.5 mt-4 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={settings.tax_allow_override === "1"}
+            onChange={(e) => { const v = e.target.checked ? "1" : "0"; setLocal("tax_allow_override", v); saveSetting("tax_allow_override", v).then(() => flash("Saved")); }}
+            className="w-4 h-4 accent-[#15A3A0]"
+          />
+          <span className="text-[13.5px] text-[#3F4B55]">
+            Allow turning tax on/off per booking (for agent or special-deal bookings)
+          </span>
+        </label>
+      </section>
+
       {/* PAYMENT DETAILS */}
       <section className="fv-card p-7 mb-6">
         <SectionHeader>Payment Details</SectionHeader>
@@ -302,14 +354,15 @@ export function Settings() {
       <section className="fv-card p-7 mb-6">
         <SectionHeader>Seasons &amp; Nightly Rates</SectionHeader>
         <div className="text-[12.5px] text-[#8794A0] mb-4 leading-[1.6]">
-          Rates in <b className="text-[#5E6B75]">AUD / night</b>. New Inquiry matches a
-          stay's check-in date against these ranges automatically.
+          Rates in <b className="text-[#5E6B75]">AUD / night</b>. The <b className="text-[#5E6B75]">Agent</b> rate
+          is used automatically when a booking's source is "Agent" — it never appears on guest documents.
         </div>
-        <div className="grid grid-cols-[120px_1fr_1fr_110px_80px_36px] gap-3 px-1 pb-2.5 border-b border-[#E6EDED]">
+        <div className="grid grid-cols-[100px_1fr_1fr_92px_92px_56px_28px] gap-2.5 px-1 pb-2.5 border-b border-[#E6EDED]">
           <Col>Season</Col>
           <Col>From</Col>
           <Col>To</Col>
-          <Col className="text-right">Rate</Col>
+          <Col className="text-right">Direct</Col>
+          <Col className="text-right">Agent</Col>
           <Col className="text-center">Min</Col>
           <span />
         </div>
@@ -318,7 +371,7 @@ export function Settings() {
           return (
             <div
               key={s.id}
-              className="grid grid-cols-[120px_1fr_1fr_110px_80px_36px] gap-3 items-center py-2.5 border-b border-[#EEF4F4]"
+              className="grid grid-cols-[100px_1fr_1fr_92px_92px_56px_28px] gap-2.5 items-center py-2.5 border-b border-[#EEF4F4]"
             >
               <input
                 className="fv-input !py-2 !px-3 !text-[12px] font-bold uppercase tracking-[0.6px] text-center rounded-full"
@@ -341,19 +394,30 @@ export function Settings() {
                 onChange={(e) => setSeasonLocal(s.id, "end_date", e.target.value)}
                 onBlur={() => persistSeason(s.id, "end_date")}
               />
-              <div className="flex items-center fv-input !py-0 !px-3">
-                <span className="text-[12px] text-[#9FB0BE] mr-1">A$</span>
+              <div className="flex items-center fv-input !py-0 !px-2.5">
+                <span className="text-[11px] text-[#9FB0BE] mr-0.5">A$</span>
                 <input
                   inputMode="numeric"
-                  className="flex-1 min-w-0 border-none outline-none bg-transparent py-2 text-right text-[13.5px] font-semibold"
+                  className="flex-1 min-w-0 border-none outline-none bg-transparent py-2 text-right text-[13px] font-semibold"
                   value={s.nightly_rate}
                   onChange={(e) => setSeasonLocal(s.id, "nightly_rate", e.target.value)}
                   onBlur={() => persistSeason(s.id, "nightly_rate")}
                 />
               </div>
+              <div className="flex items-center fv-input !py-0 !px-2.5">
+                <span className="text-[11px] text-[#9FB0BE] mr-0.5">A$</span>
+                <input
+                  inputMode="numeric"
+                  placeholder="—"
+                  className="flex-1 min-w-0 border-none outline-none bg-transparent py-2 text-right text-[13px] font-semibold"
+                  value={s.agent_rate ?? ""}
+                  onChange={(e) => setSeasonLocal(s.id, "agent_rate", e.target.value)}
+                  onBlur={() => persistSeason(s.id, "agent_rate")}
+                />
+              </div>
               <input
                 inputMode="numeric"
-                className="fv-input !py-2 !px-3 !text-[13.5px] text-center"
+                className="fv-input !py-2 !px-2 !text-[13px] text-center"
                 value={s.minimum_nights}
                 onChange={(e) => setSeasonLocal(s.id, "minimum_nights", e.target.value)}
                 onBlur={() => persistSeason(s.id, "minimum_nights")}

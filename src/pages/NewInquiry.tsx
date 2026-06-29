@@ -27,6 +27,15 @@ const num = (s: string): number => {
 const today = () => new Date().toISOString().slice(0, 10);
 
 const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
+const BOOKING_SOURCES = [
+  "Direct (website)",
+  "Direct (phone)",
+  "Direct (WhatsApp)",
+  "OTA — Airbnb",
+  "OTA — Booking.com",
+  "OTA — VRBO",
+  "Agent",
+];
 
 export function NewInquiry() {
   const navigate = useNavigate();
@@ -57,6 +66,8 @@ export function NewInquiry() {
   ]);
   const [notes, setNotes] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
+  const [source, setSource] = useState("Direct (website)");
+  const [applyTaxOverride, setApplyTaxOverride] = useState<boolean | null>(null);
 
   const [toast, setToast] = useState("");
 
@@ -79,6 +90,10 @@ export function NewInquiry() {
   }, []);
 
   const depositPct = num(settings.deposit_pct || "50");
+  const taxMode = settings.tax_mode || "inclusive";
+  const taxRate = num(settings.tax_rate || "16");
+  const taxAllowOverride = settings.tax_allow_override === "1";
+  const applyTax = taxMode === "added" ? applyTaxOverride ?? true : false;
 
   const pricingCharges: Charge[] = charges.map((c) => ({
     desc: c.desc,
@@ -96,9 +111,13 @@ export function NewInquiry() {
         charges: pricingCharges,
         amountPaid: num(amountPaid),
         depositPct,
+        source,
+        taxMode,
+        taxRate,
+        applyTax,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [checkIn, checkOut, seasons, override, amountPaid, depositPct, JSON.stringify(charges)]
+    [checkIn, checkOut, seasons, override, amountPaid, depositPct, source, taxMode, taxRate, applyTax, JSON.stringify(charges)]
   );
 
   const fmt = useMemo(() => makeFormatter(currency, fxRates), [currency, fxRates]);
@@ -133,6 +152,8 @@ export function NewInquiry() {
           num_guests: num(numGuests) || 0,
           inquiry_date: inquiryDate,
           currency,
+          source,
+          apply_tax: applyTax ? 1 : 0,
           override_rate: override.trim() === "" ? null : num(override),
           applied_rate: p.rateUsed,
           rate_source: p.rateSource,
@@ -259,6 +280,17 @@ export function NewInquiry() {
             <Field label="Inquiry date">
               <input type="date" className="fv-input" value={inquiryDate} onChange={(e) => setInquiryDate(e.target.value)} />
             </Field>
+            <Field label="Booking source" full>
+              <select
+                className="fv-input cursor-pointer appearance-none"
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+              >
+                {BOOKING_SOURCES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
           </div>
         </section>
       </div>
@@ -366,8 +398,27 @@ export function NewInquiry() {
 
         <section className="fv-card p-7">
           <SectionHeader>Totals</SectionHeader>
+          {p.rateSource === "AGENT" && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-[#FDF6E8] border border-[#EAD9A8] rounded-md text-[12px] text-[#8A6D1F]">
+              <span className="font-semibold">Agent rate applied</span> — not shown on guest documents
+            </div>
+          )}
           <Row label={`Accommodation · ${p.nights} × ${fmt(p.rateUsed)}`} value={fmt(p.accommodation)} />
-          <Row label="Additional charges" value={fmt(p.additionalTotal)} border />
+          <Row label="Additional charges" value={fmt(p.additionalTotal)} border={p.taxAmount === 0} />
+          {p.taxAmount > 0 && (
+            <Row label={`Tax & service · ${taxRate}%`} value={fmt(p.taxAmount)} border />
+          )}
+          {taxMode === "added" && taxAllowOverride && (
+            <label className="flex items-center gap-2.5 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={applyTax}
+                onChange={(e) => setApplyTaxOverride(e.target.checked)}
+                className="w-4 h-4 accent-[#15A3A0]"
+              />
+              <span className="text-[13px] text-[#5E6B75]">Apply {taxRate}% tax to this booking</span>
+            </label>
+          )}
           <div className="bg-fv-band rounded-lg px-6 py-5 my-4">
             <div className="flex items-end justify-between gap-3">
               <span className="text-[11px] font-semibold tracking-[2.5px] uppercase text-fv-accent-tint pb-1.5">
@@ -376,7 +427,9 @@ export function NewInquiry() {
               <span className="text-[34px] font-light text-white leading-none">{fmt(p.grandTotal)}</span>
             </div>
             <div className="text-[11.5px] text-[#8AA0B3] tracking-[0.3px] mt-2 text-right">
-              includes taxes, service &amp; staff
+              {taxMode === "added" && p.taxAmount > 0
+                ? `includes ${taxRate}% tax & service`
+                : "includes taxes, service & staff"}
             </div>
           </div>
           <div className="flex items-center justify-between py-2.5">

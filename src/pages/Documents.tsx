@@ -31,7 +31,7 @@ const parseAmt = (s: string): number => {
 
 // ============ INVOICE ============
 export function Invoice() {
-  const { data, settings, currency, setCurrency, fmt, loaded } = useDocData();
+  const { data, settings, fxRates, currency, setCurrency, fmt, loaded } = useDocData();
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "invoice");
@@ -56,6 +56,8 @@ export function Invoice() {
   const year = (issued || "").slice(0, 4) || new Date().getFullYear();
   const invoiceNo = `INV-${year}-${String(booking.id).padStart(4, "0")}`;
   const balanceRemain = booking.grand_total - booking.amount_paid;
+  const taxAmount = booking.grand_total - booking.accommodation_total - booking.additional_total;
+  const fxOfCurrency = fxRates.find((f) => f.code === currency)?.rate_per_aud;
   const sheetMax = orientation === "landscape" ? "max-w-[1400px]" : "max-w-[1000px]";
 
   const paymentNote = edits.get("payment_note", settings.bank_details || "");
@@ -157,6 +159,12 @@ export function Invoice() {
               <span>Additional charges</span>
               <span className="font-semibold text-[#2B3640]">{fmt(booking.additional_total)}</span>
             </div>
+            {taxAmount > 0 && (
+              <div className="flex justify-between py-1.5 text-[14px] text-[#5E6B75]">
+                <span>Tax &amp; service ({settings.tax_rate || "16"}%)</span>
+                <span className="font-semibold text-[#2B3640]">{fmt(taxAmount)}</span>
+              </div>
+            )}
             <div className="flex items-end justify-between gap-3 bg-fv-band rounded-lg px-5 py-[18px] mt-3">
               <span className="text-[11px] font-semibold tracking-[2px] uppercase text-fv-accent-tint pb-1">Total</span>
               <span className="text-[30px] font-light text-white leading-none">{fmt(booking.grand_total)}</span>
@@ -198,6 +206,11 @@ export function Invoice() {
           />
         </div>
 
+        {currency !== "AUD" && fxOfCurrency != null && (
+          <div className="text-[10px] italic text-[#9AA7AE] mt-4">
+            Amounts shown in {currency}, converted from AUD at 1 AUD = {fxOfCurrency} {currency} on {fmtDate(new Date().toISOString())}.
+          </div>
+        )}
         <DocFooter settings={settings} signature />
       </DocSheet>
     </div>
