@@ -585,13 +585,13 @@ export function DocLetterhead({ logoSrc, title }: { logoSrc: string; title: stri
   return (
     <div className="relative -mx-[68px] -mt-16 mb-9">
       <img src={docHeader} alt="" className="w-full block" />
-      <div className="absolute top-0 left-0 h-full flex items-center gap-5 pl-[68px]" style={{ width: "60%" }}>
-        <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[150px] h-auto flex-none" />
-        <div className="flex flex-col">
+      <div className="absolute inset-y-0 left-0 flex items-center" style={{ width: "70%" }}>
+        <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[150px] h-auto flex-none ml-[68px]" />
+        <div className="flex-1 flex flex-col items-center mr-6">
           <div className="font-display text-[28px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
             {title}
           </div>
-          <div className="w-[100px] h-0.5 mt-2.5" style={{ background: "linear-gradient(90deg,#C9A14E,transparent)" }} />
+          <div className="w-[100px] h-0.5 mt-2.5" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
         </div>
       </div>
     </div>

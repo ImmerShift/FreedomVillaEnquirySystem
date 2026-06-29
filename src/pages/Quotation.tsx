@@ -170,13 +170,13 @@ export function Quotation() {
         {/* full-bleed banner letterhead — logo + title over the photo header */}
         <div className="relative -mx-[52px] -mt-10 mb-5">
           <img src={docHeader} alt="" className="w-full block" />
-          <div className="absolute top-0 left-0 h-full flex items-center gap-4 pl-[52px]" style={{ width: "60%" }}>
-            <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[120px] h-auto flex-none" />
-            <div className="flex flex-col">
+          <div className="absolute inset-y-0 left-0 flex items-center" style={{ width: "70%" }}>
+            <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[120px] h-auto flex-none ml-[52px]" />
+            <div className="flex-1 flex flex-col items-center mr-5">
               <div className="font-display text-[22px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
                 Quotation
               </div>
-              <div className="w-[80px] h-0.5 mt-2" style={{ background: "linear-gradient(90deg,#C9A14E,transparent)" }} />
+              <div className="w-[80px] h-0.5 mt-2" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
             </div>
           </div>
         </div>
