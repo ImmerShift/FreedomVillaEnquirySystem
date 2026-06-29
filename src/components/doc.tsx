@@ -17,7 +17,8 @@ import {
   type DocStatus,
 } from "../db";
 import { makeFormatter, fmtDate } from "../lib/pricing";
-import logoGold from "../assets/logo-gold.png";
+import brandLogo from "../assets/brand/logo-freedomvilla.png";
+import robSignature from "../assets/brand/rob-signature-trim.png";
 
 export type Orientation = "portrait" | "landscape";
 
@@ -51,7 +52,7 @@ export function useDocData() {
 }
 
 export function logoFrom(settings: Settings): string {
-  return settings.doc_logo || logoGold;
+  return settings.doc_logo || brandLogo;
 }
 
 /** Per-document editable text overrides (intro, terms, etc.), persisted per booking. */
@@ -103,7 +104,7 @@ export function Editable({
 
 /** Injects the @page size so the print dialog defaults to the chosen orientation. */
 export function PrintOrientation({ orientation }: { orientation: Orientation }) {
-  return <style>{`@media print { @page { size: A4 ${orientation}; margin: 12mm; } }`}</style>;
+  return <style>{`@media print { @page { size: A4 ${orientation}; margin: 0; } }`}</style>;
 }
 
 /** Small Edit/Done + Portrait/Landscape control cluster for document toolbars. */
@@ -376,7 +377,7 @@ export function DocSheet({ children }: { children: ReactNode }) {
 export function DocLetterhead({ logoSrc, title }: { logoSrc: string; title: string }) {
   return (
     <div className="text-center mb-[30px]">
-      <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[228px] h-auto inline-block" />
+      <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[100px] h-auto inline-block" />
       <div className="font-display text-[42px] font-semibold tracking-[4px] uppercase leading-none mt-[18px]" style={{ color: "#B68A3E" }}>
         {title}
       </div>
@@ -386,16 +387,30 @@ export function DocLetterhead({ logoSrc, title }: { logoSrc: string; title: stri
 }
 
 /** Shared closing footer for invoice/receipt/instructions. */
-export function DocFooter({ settings }: { settings: Settings }) {
+export function DocFooter({ settings, signature }: { settings: Settings; signature?: boolean }) {
   return (
     <div className="mt-[38px] pt-[26px] border-t border-[#EEF1F1] flex items-end justify-between gap-6 flex-wrap">
       <div>
         <div className="text-[14px] text-[#4A555E] mb-0.5">With warm regards,</div>
         <div className="text-[17px] font-medium text-fv-ink">
-          {settings.villa_owner || "Robert Addamo"} &amp; the Freedom Villa team
+          {settings.villa_owner || "Robert Addamo"}
+          {!signature && " & the Freedom Villa team"}
         </div>
+        {signature && (
+          <div className="text-[12.5px] text-[#5E6B75]">
+            {settings.villa_owner_title || "Villa Owner and Booking Co-ordinator"}
+          </div>
+        )}
       </div>
       <div className="text-right text-[12px] text-[#9AA7AE] leading-[1.7]">
+        {signature && (
+          <img
+            src={robSignature}
+            alt="Robert Addamo"
+            className="w-[70px] h-auto ml-auto mb-1"
+            style={{ mixBlendMode: "multiply" }}
+          />
+        )}
         {settings.villa_website && <div>{settings.villa_website}</div>}
         {settings.villa_email && <div>{settings.villa_email}</div>}
         {settings.villa_phone && <div>{settings.villa_phone}</div>}

@@ -8,7 +8,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import "./App.css";
-import logo from "./assets/logo.png";
+import logo from "./assets/brand/logo-freedomvilla.png";
 import { NewInquiry } from "./pages/NewInquiry";
 import { Settings } from "./pages/Settings";
 import { Quotation } from "./pages/Quotation";
@@ -117,7 +117,7 @@ function Sidebar() {
   return (
     <aside className="no-print w-64 flex-none bg-fv-side-bg border-r border-fv-side-border flex flex-col sticky top-0 h-screen">
       <div className="px-[26px] py-[22px] border-b border-fv-side-border">
-        <img src={logo} alt="Freedom Villa Bali" className="w-40 h-auto block" />
+        <img src={logo} alt="Freedom Villa Bali" className="w-[120px] h-auto block" />
       </div>
       <nav className="flex-1 overflow-y-auto px-4 py-5">
         <NavGroup title="Workspace" items={WORKSPACE} />

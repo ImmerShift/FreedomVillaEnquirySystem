@@ -201,6 +201,25 @@ pub fn run() {
       "#,
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 8,
+      description: "set Rob's real villa details",
+      sql: r#"
+        UPDATE settings SET value = '3:00 PM' WHERE key = 'villa_checkin_time';
+        UPDATE settings SET value = '11:00 AM' WHERE key = 'villa_checkout_time';
+        UPDATE settings SET value = 'Villa Owner and Booking Co-ordinator' WHERE key = 'villa_owner_title';
+        UPDATE settings SET value = 'freedomvillabali.com' WHERE key = 'villa_website';
+        UPDATE settings SET value = '+62 812 384 88685' WHERE key = 'villa_phone' AND (value IS NULL OR value = '');
+        UPDATE settings SET value = 'robert@freedomvillabali.com' WHERE key = 'villa_email' AND (value IS NULL OR value = '');
+        UPDATE settings SET value = '5 expansive bedroom suites (3 can split to singles)
+1,000m² of beautifully manicured grounds
+Private onsite commercial-grade gym
+Daily chef-prepared breakfasts
+Complimentary airport transfers
+Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusions';
+      "#,
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

@@ -198,7 +198,7 @@ export function Invoice() {
           />
         </div>
 
-        <DocFooter settings={settings} />
+        <DocFooter settings={settings} signature />
       </DocSheet>
     </div>
   );

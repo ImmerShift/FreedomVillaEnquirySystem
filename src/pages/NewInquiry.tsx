@@ -151,7 +151,7 @@ export function NewInquiry() {
       flash(`Saved inquiry for ${guestName}.`);
     } catch (e) {
       console.error(e);
-      flash("Could not save — see console.");
+      flash(`Could not save: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 

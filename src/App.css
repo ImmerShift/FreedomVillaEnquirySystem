@@ -68,21 +68,36 @@
 
 /* ---- print: only the document sheet, with colours preserved ---- */
 @media print {
+  /* margin:0 removes the browser's auto URL/date header & footer
+     (the sheet's own padding provides the printed margin) */
   @page {
-    margin: 12mm;
+    margin: 0;
   }
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  body {
+  /* release the full-height SPA layout so print content flows instead of
+     being clipped to one viewport (this is what caused the blank page) */
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     background: #fff !important;
+  }
+  /* flatten the flex app-shell so the document flows down the page */
+  #root > div {
+    display: block !important;
+    min-height: 0 !important;
   }
   .no-print {
     display: none !important;
   }
   main {
     padding: 0 !important;
+    display: block !important;
   }
   .print-sheet {
     box-shadow: none !important;
