@@ -18,6 +18,7 @@ import {
   type Orientation,
 } from "../components/doc";
 import { nightsBetween, fmtDate, addDays } from "../lib/pricing";
+import { exportSheetPdf } from "../lib/exportPdf";
 
 // ============ INVOICE ============
 export function Invoice() {
@@ -33,7 +34,7 @@ export function Invoice() {
   };
   const savePdf = async () => {
     await docStatus.markPdf();
-    window.print();
+    await exportSheetPdf("Invoice", data?.guest?.full_name);
   };
 
   if (!loaded) return null;
@@ -228,7 +229,7 @@ export function Receipt() {
   const docStatus = useDocStatus(data?.booking.id, "receipt");
   const savePdf = async () => {
     await docStatus.markPdf();
-    window.print();
+    await exportSheetPdf("Receipt", data?.guest?.full_name);
   };
 
   if (!loaded) return null;
@@ -344,7 +345,7 @@ export function VillaInstructions() {
   const docStatus = useDocStatus(data?.booking.id, "instructions");
   const savePdf = async () => {
     await docStatus.markPdf();
-    window.print();
+    await exportSheetPdf("Villa Instructions", data?.guest?.full_name);
   };
 
   if (!loaded) return null;

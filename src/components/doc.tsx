@@ -586,14 +586,14 @@ export function DocLetterhead({ logoSrc, title }: { logoSrc: string; title: stri
     <div className="relative mb-9">
       {/* photo accent bleeding into the sheet's top-right corner */}
       <img src={docHeader} alt="Freedom Villa" className="absolute -top-16 -right-[68px] h-[150px] w-auto" />
-      {/* logo + gold title on the left */}
-      <div className="relative flex items-center gap-5 h-[100px]">
+      {/* logo left, gold title centered in the white area before the photo */}
+      <div className="relative flex items-center h-[100px]" style={{ width: "63%" }}>
         <img src={logoSrc} alt="Freedom Villa · Petitenget Bali" className="w-[150px] h-auto flex-none" />
-        <div className="flex flex-col">
+        <div className="flex-1 flex flex-col items-center">
           <div className="font-display text-[30px] font-semibold tracking-[4px] uppercase leading-none" style={{ color: "#B68A3E" }}>
             {title}
           </div>
-          <div className="w-[110px] h-0.5 mt-3" style={{ background: "linear-gradient(90deg,#C9A14E,transparent)" }} />
+          <div className="w-[110px] h-0.5 mt-3" style={{ background: "linear-gradient(90deg,transparent,#C9A14E,transparent)" }} />
         </div>
       </div>
       <div className="h-px mt-2" style={{ background: "linear-gradient(90deg,#E4C998,transparent)" }} />
