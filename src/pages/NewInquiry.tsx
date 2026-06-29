@@ -156,9 +156,12 @@ export function NewInquiry() {
     window.setTimeout(() => setToast(""), 2600);
   };
 
+  const datesInverted = !!checkIn && !!checkOut && checkOut <= checkIn;
+
   const handleSave = async () => {
     if (!guestName.trim()) return flash("Add a guest name first.");
     if (!checkIn || !checkOut) return flash("Add check-in and check-out dates.");
+    if (datesInverted) return flash("Check-out must be after check-in.");
     try {
       const bookingId = await saveInquiry({
         guest: { full_name: guestName, country, email, whatsapp },
@@ -185,7 +188,7 @@ export function NewInquiry() {
         charges: pricingCharges,
       });
       setActiveBookingId(bookingId);
-      flash(`Saved inquiry for ${guestName}.`);
+      navigate("/guests", { state: { highlightId: bookingId } });
     } catch (e) {
       console.error(e);
       flash(`Could not save: ${e instanceof Error ? e.message : String(e)}`);
@@ -193,6 +196,14 @@ export function NewInquiry() {
   };
 
   const minBar = (() => {
+    if (datesInverted)
+      return {
+        bg: "#FDECEA",
+        border: "#F5B7B1",
+        color: "#C0392B",
+        mark: "!",
+        label: "Check-out must be after check-in.",
+      };
     if (p.minMet == null)
       return {
         bg: "#F2F4F5",
@@ -224,10 +235,10 @@ export function NewInquiry() {
       <div className="flex items-end justify-between gap-6 mb-[30px]">
         <div>
           <div className="text-[11px] font-semibold tracking-[3px] uppercase text-fv-accent-deep mb-2.5">
-            New Guest
+            New Request
           </div>
           <h1 className="text-[38px] font-light text-fv-ink leading-[1.05] tracking-[0.3px] m-0 mb-2">
-            New Inquiry
+            Quotation Request
           </h1>
           <div className="text-[13.5px] text-[#6B7780]">
             Fill the blue cells — season, rate and totals fill themselves.
@@ -256,7 +267,7 @@ export function NewInquiry() {
             Open Quotation
           </button>
           <button className="btn-accent" onClick={handleSave}>
-            Save Inquiry
+            Save Request
           </button>
         </div>
       </div>

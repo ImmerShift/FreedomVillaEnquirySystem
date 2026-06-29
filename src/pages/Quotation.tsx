@@ -98,10 +98,10 @@ export function Quotation() {
         <h1 className="text-[38px] font-light text-fv-ink leading-[1.05] m-0 mb-4">Quotation</h1>
         <div className="fv-card p-10 text-center">
           <p className="text-[15px] text-[#6B7780] mb-5">
-            No saved inquiry yet. Fill in the New Inquiry screen and click <b>Save Inquiry</b>.
+            No saved request yet. Fill in the Quotation Request screen and click <b>Save Request</b>.
           </p>
           <button className="btn-accent" onClick={() => navigate("/inquiry")}>
-            Go to New Inquiry
+            Go to Quotation Request
           </button>
         </div>
       </div>
@@ -186,7 +186,7 @@ export function Quotation() {
             ))}
           </select>
           <DocControls editing={edits.editing} onToggleEdit={toggleEdit} orientation={orientation} setOrientation={setOrientation} />
-          <button className="btn-ghost" onClick={() => navigate("/inquiry")}>Back to Inquiry</button>
+          <button className="btn-ghost" onClick={() => navigate("/inquiry")}>Back to Request</button>
           <button className="btn-accent" onClick={savePdf} disabled={edits.editing}>Save PDF</button>
         </div>
       </div>

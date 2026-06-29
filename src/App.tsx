@@ -25,7 +25,7 @@ interface NavItem {
 
 const WORKSPACE: NavItem[] = [
   { to: "/home", label: "Home" },
-  { to: "/inquiry", label: "New Inquiry" },
+  { to: "/inquiry", label: "Quotation Request" },
   { to: "/guests", label: "Guests Stay" },
   { to: "/availability", label: "Availability" },
 ];

@@ -203,7 +203,7 @@ export function DocToolbar({
           />
         )}
         <button className="btn-ghost" onClick={() => navigate("/inquiry")}>
-          Back to Inquiry
+          Back to Request
         </button>
         <button
           className="btn-accent"
@@ -430,11 +430,11 @@ export function DocEmpty({ title }: { title: string }) {
       <h1 className="text-[38px] font-light text-fv-ink leading-[1.05] m-0 mb-4">{title}</h1>
       <div className="fv-card p-10 text-center">
         <p className="text-[15px] text-[#6B7780] mb-5">
-          No saved inquiry yet. Fill in the New Inquiry screen and click{" "}
-          <b>Save Inquiry</b> — this document builds itself from there.
+          No saved request yet. Fill in the Quotation Request screen and click{" "}
+          <b>Save Request</b> — this document builds itself from there.
         </p>
         <button className="btn-accent" onClick={() => navigate("/inquiry")}>
-          Go to New Inquiry
+          Go to Quotation Request
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   loadGuestStays,
   loadFxRates,
@@ -15,6 +15,7 @@ import {
 import { makeFormatter, nightsBetween, fmtDate } from "../lib/pricing";
 import { PageTitle } from "../components/ui";
 import { GenerateDocModal } from "../components/GenerateDocModal";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 type ChipTone = "teal" | "green" | "amber" | "grey";
 
@@ -68,6 +69,11 @@ function deriveStatus(r: GuestStayRow): string {
 
 export function GuestsStay() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [highlightId, setHighlightId] = useState<number | null>(
+    (location.state as { highlightId?: number } | null)?.highlightId ?? null
+  );
+  const [confirmCancel, setConfirmCancel] = useState<GuestStayRow | null>(null);
   const [rows, setRows] = useState<GuestStayRow[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -117,9 +123,23 @@ export function GuestsStay() {
     reload();
   }, []);
 
-  const toggleCancel = async (e: React.MouseEvent, id: number, cancelled: boolean) => {
+  // fade the "just saved" highlight after a few seconds
+  useEffect(() => {
+    if (highlightId == null) return;
+    const t = window.setTimeout(() => setHighlightId(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [highlightId]);
+
+  // restore is harmless (no confirm); cancelling asks first
+  const onCancelClick = (e: React.MouseEvent, r: GuestStayRow) => {
     e.stopPropagation();
-    await setBookingCancelled(id, !cancelled);
+    if (r.status === "Cancelled") setBookingCancelled(r.id, false).then(reload);
+    else setConfirmCancel(r);
+  };
+  const doCancel = async () => {
+    if (!confirmCancel) return;
+    await setBookingCancelled(confirmCancel.id, true);
+    setConfirmCancel(null);
     reload();
   };
 
@@ -201,10 +221,10 @@ export function GuestsStay() {
       {loaded && rows.length === 0 ? (
         <div className="fv-card p-10 text-center">
           <p className="text-[15px] text-[#6B7780] mb-5">
-            No inquiries saved yet. Create one on the New Inquiry screen.
+            No requests saved yet. Create one on the Quotation Request screen.
           </p>
           <button className="btn-accent" onClick={() => navigate("/inquiry")}>
-            Go to New Inquiry
+            Go to Quotation Request
           </button>
         </div>
       ) : (
@@ -240,7 +260,13 @@ export function GuestsStay() {
                 <div
                   onClick={() => setExpandedId(expanded ? null : r.id)}
                   className={`grid grid-cols-[1.6fr_1.4fr_0.6fr_1fr_1fr_1fr_84px] gap-3.5 items-center px-6 py-[17px] border-b border-[#F0F4F4] cursor-pointer transition-colors ${
-                    expanded ? "bg-[#F4FBFB]" : cancelled ? "bg-[#FBFCFC] opacity-60" : "hover:bg-[#FAFDFD]"
+                    r.id === highlightId
+                      ? "bg-[#EAF7F6] ring-2 ring-inset ring-fv-accent"
+                      : expanded
+                      ? "bg-[#F4FBFB]"
+                      : cancelled
+                      ? "bg-[#FBFCFC] opacity-60"
+                      : "hover:bg-[#FAFDFD]"
                   }`}
                 >
                 <div>
@@ -287,7 +313,7 @@ export function GuestsStay() {
                 </span>
                 <span className="text-right">
                   <button
-                    onClick={(e) => toggleCancel(e, r.id, cancelled)}
+                    onClick={(e) => onCancelClick(e, r)}
                     className={`text-[12px] font-semibold bg-transparent border-none cursor-pointer ${
                       cancelled ? "text-fv-accent-deep" : "text-[#9AA7AE] hover:text-[#C0392B]"
                     }`}
@@ -331,6 +357,18 @@ export function GuestsStay() {
       )}
 
       {docRow && <GenerateDocModal row={docRow} onClose={() => setDocRow(null)} />}
+
+      {confirmCancel && (
+        <ConfirmModal
+          title="Cancel this booking?"
+          message={`${confirmCancel.guest_name}'s stay will be marked cancelled and its dates freed up. You can restore it later.`}
+          confirmLabel="Cancel booking"
+          cancelLabel="Keep it"
+          danger
+          onConfirm={doCancel}
+          onClose={() => setConfirmCancel(null)}
+        />
+      )}
     </div>
   );
 }
