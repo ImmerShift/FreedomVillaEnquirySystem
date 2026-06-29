@@ -12,9 +12,9 @@ import {
   type FxRate,
   type Followup,
 } from "../db";
-import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, nightsBetween, fmtDate } from "../lib/pricing";
 import { PageTitle } from "../components/ui";
+import { GenerateDocModal } from "../components/GenerateDocModal";
 
 type ChipTone = "teal" | "green" | "amber" | "grey";
 
@@ -79,6 +79,7 @@ export function GuestsStay() {
   const [followups, setFollowups] = useState<Followup[]>([]);
   const [fuDate, setFuDate] = useState(new Date().toISOString().slice(0, 10));
   const [fuNote, setFuNote] = useState("");
+  const [docRow, setDocRow] = useState<GuestStayRow | null>(null);
 
   const loadFu = async (bookingId: number) => setFollowups(await loadFollowups(bookingId));
   useEffect(() => {
@@ -116,10 +117,6 @@ export function GuestsStay() {
     reload();
   }, []);
 
-  const openGuest = (id: number) => {
-    setActiveBookingId(id);
-    navigate("/quotation");
-  };
   const toggleCancel = async (e: React.MouseEvent, id: number, cancelled: boolean) => {
     e.stopPropagation();
     await setBookingCancelled(id, !cancelled);
@@ -304,8 +301,8 @@ export function GuestsStay() {
                   <div className="px-6 py-5 bg-[#F8FCFC] border-b border-[#E6EDED]">
                     <div className="flex items-center justify-between mb-3">
                       <span className="fv-section-label">Follow-ups</span>
-                      <button className="btn-accent !py-2 !px-4" onClick={() => openGuest(r.id)}>
-                        Open documents →
+                      <button className="btn-accent !py-2 !px-4" onClick={() => setDocRow(r)}>
+                        Generate document →
                       </button>
                     </div>
                     {followups.length > 0 && (
@@ -332,6 +329,8 @@ export function GuestsStay() {
           })}
         </div>
       )}
+
+      {docRow && <GenerateDocModal row={docRow} onClose={() => setDocRow(null)} />}
     </div>
   );
 }

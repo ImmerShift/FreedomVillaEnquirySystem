@@ -529,6 +529,28 @@ export async function addFollowup(
   );
 }
 
+export interface DueFollowup {
+  id: number;
+  booking_id: number;
+  guest_name: string;
+  due_date: string | null;
+  note: string | null;
+}
+
+/** Open follow-ups due today or overdue, across all active bookings (for the dashboard). */
+export async function loadDueFollowups(): Promise<DueFollowup[]> {
+  const db = await getDb();
+  return db.select<DueFollowup[]>(`
+    SELECT f.id, f.booking_id, COALESCE(g.full_name, '—') AS guest_name,
+           f.due_date, f.note
+    FROM follow_ups f
+    JOIN bookings b ON b.id = f.booking_id
+    LEFT JOIN guests g ON g.id = b.guest_id
+    WHERE f.done = 0 AND f.due_date <= date('now') AND b.status != 'Cancelled'
+    ORDER BY f.due_date, f.id
+  `);
+}
+
 export async function toggleFollowup(id: number, done: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE follow_ups SET done = $1 WHERE id = $2", [done ? 1 : 0, id]);

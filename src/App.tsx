@@ -16,6 +16,7 @@ import { Invoice, Receipt, VillaInstructions } from "./pages/Documents";
 import { GuestsStay } from "./pages/GuestsStay";
 import { Personalization } from "./pages/Personalization";
 import { Availability } from "./pages/Availability";
+import { Home } from "./pages/Home";
 
 interface NavItem {
   to: string;
@@ -23,6 +24,7 @@ interface NavItem {
 }
 
 const WORKSPACE: NavItem[] = [
+  { to: "/home", label: "Home" },
   { to: "/inquiry", label: "New Inquiry" },
   { to: "/guests", label: "Guests Stay" },
   { to: "/availability", label: "Availability" },
@@ -136,7 +138,8 @@ export default function App() {
         <Sidebar />
         <main className="flex-1 min-w-0 px-11 pt-8 pb-16">
           <Routes>
-            <Route path="/" element={<Navigate to="/inquiry" replace />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/inquiry" element={<NewInquiry />} />
             <Route path="/guests" element={<GuestsStay />} />
             <Route path="/availability" element={<Availability />} />
