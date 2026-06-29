@@ -1,10 +1,12 @@
-// One-click PDF export. Renders the document sheet to a high-res image and lays
-// it onto an A4 portrait page at full width (edge-to-edge sides, no margins, no
-// stretch), bypassing the browser print dialog so printer hardware margins can't
-// add white edges. A toast confirms the save (the file lands in Downloads).
+// One-click PDF export. Renders the document sheet to a high-res image, lays it
+// onto an A4 portrait page at full width (edge-to-edge sides, no margins, no
+// stretch), then lets the user choose where to save it via a native "Save As"
+// dialog (desktop). On the web build it falls back to a normal download.
 
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas-pro";
+import { invoke } from "@tauri-apps/api/core";
+import { isTauri } from "./env";
 
 const safe = (s: string) => s.replace(/[^\w\s-]+/g, "").replace(/\s+/g, " ").trim();
 const A4_W = 210;
@@ -52,10 +54,21 @@ export async function exportSheetPdf(docLabel: string, guestName?: string): Prom
     }
 
     const name = guestName ? ` - ${safe(guestName)}` : "";
-    pdf.save(`Freedom Villa - ${docLabel}${name}.pdf`);
+    const filename = `Freedom Villa - ${docLabel}${name}.pdf`;
 
-    toast.remove();
-    showToast("Saved to your Downloads folder ✓", 3000);
+    if (isTauri()) {
+      // Native Save As — the user picks the folder.
+      const dataUri = pdf.output("datauristring");
+      const b64 = dataUri.split("base64,")[1] || "";
+      toast.textContent = "Choose where to save…";
+      const saved = await invoke<boolean>("save_pdf", { defaultName: filename, dataB64: b64 });
+      toast.remove();
+      if (saved) showToast("PDF saved ✓", 3000);
+    } else {
+      pdf.save(filename); // web build → browser download
+      toast.remove();
+      showToast("PDF downloaded ✓", 3000);
+    }
   } catch (err) {
     console.error("PDF export failed:", err);
     toast.remove();

@@ -1,5 +1,28 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+/// Shows a native "Save As" dialog so the user picks the folder, then writes the
+/// PDF bytes (sent base64-encoded from the webview) to the chosen path.
+/// Returns true if saved, false if the user cancelled.
+#[tauri::command]
+async fn save_pdf(default_name: String, data_b64: String) -> Result<bool, String> {
+  use base64::Engine;
+  let bytes = base64::engine::general_purpose::STANDARD
+    .decode(data_b64.as_bytes())
+    .map_err(|e| e.to_string())?;
+  let file = rfd::AsyncFileDialog::new()
+    .set_file_name(&default_name)
+    .add_filter("PDF document", &["pdf"])
+    .save_file()
+    .await;
+  match file {
+    Some(handle) => {
+      std::fs::write(handle.path(), &bytes).map_err(|e| e.to_string())?;
+      Ok(true)
+    }
+    None => Ok(false),
+  }
+}
+
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
@@ -282,6 +305,7 @@ Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusio
   ];
 
   tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![save_pdf])
     .plugin(tauri_plugin_opener::init())
     .plugin(
       tauri_plugin_sql::Builder::default()
