@@ -8,12 +8,15 @@ import {
   deleteSeason,
   loadFxRates,
   updateFxRate,
+  addFxRate,
+  deleteFxRate,
   exportAllData,
   type Season,
   type FxRate,
   type Settings as SettingsMap,
 } from "../db";
 import { SectionHeader, Field, PageTitle } from "../components/ui";
+import { Flag } from "../components/CurrencySelect";
 import logoGold from "../assets/logo-gold.png";
 
 const num = (s: string): number => {
@@ -103,6 +106,20 @@ export function Settings() {
     if (!row) return;
     await updateFxRate(code, num(String(row.rate_per_aud)));
     flash("Saved");
+  };
+  const [newCur, setNewCur] = useState({ code: "", name: "", rate: "" });
+  const onAddCurrency = async () => {
+    const code = newCur.code.trim().toUpperCase();
+    if (!code || code === "AUD") return flash("Enter a currency code");
+    await addFxRate(code, newCur.name.trim() || code, num(newCur.rate));
+    setNewCur({ code: "", name: "", rate: "" });
+    setFxRates(await loadFxRates());
+    flash("Currency added");
+  };
+  const onDeleteCurrency = async (code: string) => {
+    await deleteFxRate(code);
+    setFxRates((rows) => rows.filter((r) => r.code !== code));
+    flash("Removed");
   };
 
   // document logo: read uploaded image as a data URL, store in settings
@@ -509,11 +526,12 @@ export function Settings() {
         <SectionHeader>Exchange Rates</SectionHeader>
         <div className="text-[12.5px] text-[#8794A0] mb-4 leading-[1.6]">
           Stored against <b className="text-[#5E6B75]">AUD (base)</b>. Enter how many
-          units equal 1 AUD — every document converts from here.
+          units equal 1 AUD — every document converts from here. Add any currency your
+          guests ask for; remove ones you don't use.
         </div>
         <div className="flex items-center justify-between py-3 border-b border-[#EEF4F4]">
-          <span className="text-[14px] font-semibold text-fv-ink">
-            AUD · Australian Dollar
+          <span className="flex items-center gap-2.5 text-[14px] font-semibold text-fv-ink">
+            <Flag code="AUD" /> AUD · Australian Dollar
           </span>
           <span className="text-[13px] font-semibold text-[#9AA7AE] bg-[#F2F8F8] border border-[#DCEAEA] rounded-[5px] px-3.5 py-2">
             Base · 1.00
@@ -524,14 +542,14 @@ export function Settings() {
             key={fx.code}
             className="flex items-center justify-between gap-4 py-3 border-b border-[#EEF4F4]"
           >
-            <span className="text-[14px] font-medium text-ink-700">
-              {fx.name}
+            <span className="flex items-center gap-2.5 text-[14px] font-medium text-ink-700">
+              <Flag code={fx.code} /> {fx.name}
             </span>
             <label className="flex items-center gap-2.5">
               <span className="text-[12px] text-[#9AA7AE]">1 AUD =</span>
               <input
                 inputMode="decimal"
-                className="w-[120px] fv-input !py-2 !px-3 text-right !text-[14px] font-semibold"
+                className="w-[110px] fv-input !py-2 !px-3 text-right !text-[14px] font-semibold"
                 value={fx.rate_per_aud}
                 onChange={(e) => setFxLocal(fx.code, e.target.value)}
                 onBlur={() => persistFx(fx.code)}
@@ -539,9 +557,44 @@ export function Settings() {
               <span className="text-[12px] font-semibold text-[#5E6B75] w-[34px]">
                 {fx.code}
               </span>
+              <button
+                onClick={() => onDeleteCurrency(fx.code)}
+                title={`Remove ${fx.code}`}
+                className="text-[18px] text-[#B8C5C5] bg-transparent border-none cursor-pointer leading-none transition-colors hover:text-[#C0392B]"
+              >
+                ×
+              </button>
             </label>
           </div>
         ))}
+
+        {/* add currency */}
+        <div className="grid grid-cols-[90px_1fr_130px_auto] gap-2.5 items-center mt-4">
+          <input
+            value={newCur.code}
+            onChange={(e) => setNewCur((c) => ({ ...c, code: e.target.value.toUpperCase() }))}
+            placeholder="USD"
+            maxLength={3}
+            className="fv-input !py-2.5 !px-3 !text-[13px] uppercase font-semibold text-center"
+          />
+          <input
+            value={newCur.name}
+            onChange={(e) => setNewCur((c) => ({ ...c, name: e.target.value }))}
+            placeholder="Currency name (e.g. US Dollar)"
+            className="fv-input !py-2.5 !px-3 !text-[13px]"
+          />
+          <div className="flex items-center fv-input !py-0 !px-3">
+            <span className="text-[11px] text-[#9FB0BE] mr-1.5 whitespace-nowrap">1 AUD =</span>
+            <input
+              inputMode="decimal"
+              value={newCur.rate}
+              onChange={(e) => setNewCur((c) => ({ ...c, rate: e.target.value }))}
+              placeholder="0"
+              className="flex-1 min-w-0 border-none outline-none bg-transparent py-2.5 text-right text-[13px] font-semibold"
+            />
+          </div>
+          <button onClick={onAddCurrency} className="btn-accent !py-2.5">Add</button>
+        </div>
       </section>
 
       {/* DATA BACKUP */}

@@ -98,6 +98,17 @@ try {
         $stmt->execute([(float) ($body['rate_per_aud'] ?? 0), $r1]);
         fv_send(['ok' => true]);
       }
+      if ($method === 'POST') {
+        $stmt = $db->prepare("INSERT INTO fx_rates (code, name, rate_per_aud, sort_order)
+          VALUES (?,?,?,(SELECT COALESCE(MAX(sort_order),0)+1 FROM (SELECT * FROM fx_rates) s))
+          ON DUPLICATE KEY UPDATE name = VALUES(name), rate_per_aud = VALUES(rate_per_aud)");
+        $stmt->execute([$body['code'], $body['name'] ?? $body['code'], (float) ($body['rate_per_aud'] ?? 0)]);
+        fv_send(['ok' => true]);
+      }
+      if ($method === 'DELETE' && $r1) {
+        $db->prepare("DELETE FROM fx_rates WHERE code = ?")->execute([$r1]);
+        fv_send(['ok' => true]);
+      }
       break;
     }
 

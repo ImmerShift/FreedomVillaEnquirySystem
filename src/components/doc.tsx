@@ -25,13 +25,12 @@ import {
 } from "../db";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, fmtDate } from "../lib/pricing";
+import { CurrencySelect } from "./CurrencySelect";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
 import villaPhoto from "../assets/villa-1.jpg";
 
 export type Orientation = "portrait" | "landscape";
-
-const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
 
 /** Loads the active booking + settings + fx + the guest list, and lets the doc
  *  screens switch which guest/booking they're showing. */
@@ -269,6 +268,7 @@ export function DocToolbar({
   guests,
   activeId,
   onPick,
+  fxRates = [],
 }: {
   title: string;
   currency: string;
@@ -282,6 +282,7 @@ export function DocToolbar({
   guests?: GuestStayRow[];
   activeId?: number;
   onPick?: (id: number) => void;
+  fxRates?: FxRate[];
 }) {
   const navigate = useNavigate();
   const hasControls = onToggleEdit && setOrientation && orientation;
@@ -298,17 +299,12 @@ export function DocToolbar({
           <GuestPicker bookings={guests} activeId={activeId} onPick={onPick} />
         )}
         {showCurrency && (
-          <select
+          <CurrencySelect
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-4 pr-9 py-2.5 cursor-pointer outline-none appearance-none"
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            onChange={setCurrency}
+            fxRates={fxRates}
+            triggerClassName="flex items-center gap-2 text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-3 py-2.5 cursor-pointer outline-none"
+          />
         )}
         {hasControls && (
           <DocControls

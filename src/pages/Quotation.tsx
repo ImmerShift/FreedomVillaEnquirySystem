@@ -13,11 +13,10 @@ import {
   SendModal,
   type Orientation,
 } from "../components/doc";
+import { CurrencySelect } from "../components/CurrencySelect";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
 import villaPhoto from "../assets/villa-1.jpg";
-
-const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
 
 const DEFAULT_INCLUSIONS =
   "5 expansive bedroom suites (3 can split to singles)\n" +
@@ -151,15 +150,12 @@ export function Quotation() {
         </div>
         <div className="flex items-center gap-3 flex-none">
           <GuestPicker bookings={bookings} activeId={data.booking.id} onPick={pick} />
-          <select
+          <CurrencySelect
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-4 pr-9 py-2.5 cursor-pointer outline-none appearance-none"
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            onChange={setCurrency}
+            fxRates={fxRates}
+            triggerClassName="flex items-center gap-2 text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-3 py-2.5 cursor-pointer outline-none"
+          />
           <DocControls editing={edits.editing} onToggleEdit={toggleEdit} orientation={orientation} setOrientation={setOrientation} />
           <button className="btn-ghost" onClick={() => navigate("/inquiry")}>Back to Request</button>
           <button className="btn-accent" onClick={savePdf} disabled={edits.editing}>Save PDF</button>

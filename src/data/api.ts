@@ -82,6 +82,12 @@ export async function deleteSeason(id: number): Promise<void> {
 export async function updateFxRate(code: string, ratePerAud: number): Promise<void> {
   await send("PATCH", `/fx-rates/${code}`, { rate_per_aud: ratePerAud });
 }
+export async function addFxRate(code: string, name: string, ratePerAud: number): Promise<void> {
+  await send("POST", "/fx-rates", { code, name, rate_per_aud: ratePerAud });
+}
+export async function deleteFxRate(code: string): Promise<void> {
+  await send("DELETE", `/fx-rates/${code}`);
+}
 
 // ---- inquiries ----
 

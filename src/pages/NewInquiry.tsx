@@ -16,6 +16,7 @@ import { computePricing, makeFormatter, fmtDate, nightsBetween, type Charge } fr
 import { setActiveBookingId } from "../lib/activeBooking";
 import { SectionHeader, Field } from "../components/ui";
 import { DatePicker } from "../components/DatePicker";
+import { CurrencySelect } from "../components/CurrencySelect";
 
 interface ChargeRowState {
   desc: string;
@@ -30,7 +31,6 @@ const num = (s: string): number => {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
 const BOOKING_SOURCES = [
   "Direct (website)",
   "Direct (phone)",
@@ -287,17 +287,7 @@ export function NewInquiry() {
         </div>
         <div className="flex items-center gap-3 flex-none">
           <div className="flex flex-col items-end gap-1">
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="text-[13px] font-semibold tracking-[0.3px] text-fv-ink bg-[#F2F8F8] border border-[#DCEAEA] rounded-full pl-4 pr-9 py-2.5 cursor-pointer outline-none appearance-none"
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <CurrencySelect value={currency} onChange={setCurrency} fxRates={fxRates} />
             {showFxNote && (
               <span className="text-[10.5px] text-[#9AA7AE]">
                 1 AUD = {fxRate} {currency}

@@ -9,6 +9,7 @@ import "@fontsource/raleway/700.css";
 import "@fontsource/cinzel/500.css";
 import "@fontsource/cinzel/600.css";
 import "@fontsource/cinzel/700.css";
+import "flag-icons/css/flag-icons.min.css";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

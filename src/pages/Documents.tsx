@@ -88,6 +88,7 @@ export function Invoice() {
         guests={bookings}
         activeId={data.booking.id}
         onPick={pick}
+        fxRates={fxRates}
       />
       <DocStatusBar status={docStatus.status} onSend={() => setSendOpen(true)} />
       <SendModal
@@ -215,7 +216,7 @@ export function Invoice() {
 
 // ============ RECEIPT ============
 export function Receipt() {
-  const { data, settings, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
+  const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [paidLive, setPaidLive] = useState<number | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const edits = useDocEdits(data?.booking.id, "receipt");
@@ -258,6 +259,7 @@ export function Receipt() {
         guests={bookings}
         activeId={data.booking.id}
         onPick={pick}
+        fxRates={fxRates}
       />
       <DocStatusBar status={docStatus.status} onSend={() => setSendOpen(true)} />
       <SendModal

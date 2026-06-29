@@ -113,6 +113,25 @@ export async function updateFxRate(
   ]);
 }
 
+export async function addFxRate(
+  code: string,
+  name: string,
+  ratePerAud: number
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO fx_rates (code, name, rate_per_aud, sort_order)
+     VALUES ($1, $2, $3, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM fx_rates))
+     ON CONFLICT(code) DO UPDATE SET name = $2, rate_per_aud = $3`,
+    [code, name, ratePerAud]
+  );
+}
+
+export async function deleteFxRate(code: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM fx_rates WHERE code = $1", [code]);
+}
+
 // ---- inquiries (guest + booking + charges) ----
 
 /** Inserts a guest, a booking, and its charge rows. Returns the new booking id. */

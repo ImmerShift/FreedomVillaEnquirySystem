@@ -23,6 +23,8 @@ export const {
   addSeason,
   deleteSeason,
   updateFxRate,
+  addFxRate,
+  deleteFxRate,
   saveInquiry,
   exportAllData,
   loadDocStatus,
