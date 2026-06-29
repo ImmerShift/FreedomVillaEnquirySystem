@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   loadActiveBooking,
+  loadBookingById,
+  loadGuestStays,
   loadSettings,
   loadFxRates,
   loadDocFields,
@@ -15,7 +17,9 @@ import {
   type Settings,
   type Guest,
   type DocStatus,
+  type GuestStayRow,
 } from "../db";
+import { setActiveBookingId } from "../lib/activeBooking";
 import { makeFormatter, fmtDate } from "../lib/pricing";
 import brandLogo from "../assets/brand/logo-freedomvilla.png";
 import robSignature from "../assets/brand/rob-signature-trim.png";
@@ -24,31 +28,73 @@ export type Orientation = "portrait" | "landscape";
 
 const CURRENCIES = ["AUD", "USD", "IDR", "EUR", "GBP", "SGD", "THB"];
 
-/** Loads the latest booking + settings + fx and exposes a currency-aware formatter. */
+/** Loads the active booking + settings + fx + the guest list, and lets the doc
+ *  screens switch which guest/booking they're showing. */
 export function useDocData() {
   const [data, setData] = useState<FullBooking | null>(null);
   const [settings, setSettings] = useState<Settings>({});
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [currency, setCurrency] = useState("AUD");
   const [loaded, setLoaded] = useState(false);
+  const [bookings, setBookings] = useState<GuestStayRow[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [b, s, fx] = await Promise.all([
+      const [b, s, fx, list] = await Promise.all([
         loadActiveBooking(),
         loadSettings(),
         loadFxRates(),
+        loadGuestStays(),
       ]);
       setData(b);
       setSettings(s);
       setFxRates(fx);
+      setBookings(list);
       if (b) setCurrency(b.booking.currency || "AUD");
       setLoaded(true);
     })();
   }, []);
 
+  /** Switch the document to a different guest's booking. */
+  const pick = useCallback(async (id: number) => {
+    setActiveBookingId(id);
+    const b = await loadBookingById(id);
+    setData(b);
+    if (b) setCurrency(b.booking.currency || "AUD");
+  }, []);
+
   const fmt = useMemo(() => makeFormatter(currency, fxRates), [currency, fxRates]);
-  return { data, settings, fxRates, currency, setCurrency, fmt, loaded };
+  return { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick };
+}
+
+/** Dropdown to switch which guest/booking a document is generated for. */
+export function GuestPicker({
+  bookings,
+  activeId,
+  onPick,
+}: {
+  bookings: GuestStayRow[];
+  activeId: number | undefined;
+  onPick: (id: number) => void;
+}) {
+  if (bookings.length === 0) return null;
+  return (
+    <label className="flex items-center gap-2">
+      <span className="text-[10px] font-bold tracking-[1.4px] uppercase text-[#9AA7AE]">Guest</span>
+      <select
+        value={activeId ?? ""}
+        onChange={(e) => onPick(Number(e.target.value))}
+        className="text-[13px] font-semibold text-fv-ink bg-white border border-[#C5D2D2] rounded-md pl-3 pr-8 py-2.5 cursor-pointer outline-none appearance-none max-w-[230px] truncate"
+        title="Switch guest"
+      >
+        {bookings.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.guest_name} · {fmtDate(b.check_in)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 export function logoFrom(settings: Settings): string {
@@ -159,6 +205,9 @@ export function DocToolbar({
   orientation,
   setOrientation,
   onSavePdf,
+  guests,
+  activeId,
+  onPick,
 }: {
   title: string;
   currency: string;
@@ -169,6 +218,9 @@ export function DocToolbar({
   orientation?: Orientation;
   setOrientation?: (o: Orientation) => void;
   onSavePdf?: () => void;
+  guests?: GuestStayRow[];
+  activeId?: number;
+  onPick?: (id: number) => void;
 }) {
   const navigate = useNavigate();
   const hasControls = onToggleEdit && setOrientation && orientation;
@@ -181,6 +233,9 @@ export function DocToolbar({
         <h1 className="text-[38px] font-light text-fv-ink leading-[1.05] m-0">{title}</h1>
       </div>
       <div className="flex items-center gap-3 flex-none">
+        {guests && onPick && (
+          <GuestPicker bookings={guests} activeId={activeId} onPick={onPick} />
+        )}
         {showCurrency && (
           <select
             value={currency}

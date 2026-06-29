@@ -31,7 +31,7 @@ const parseAmt = (s: string): number => {
 
 // ============ INVOICE ============
 export function Invoice() {
-  const { data, settings, fxRates, currency, setCurrency, fmt, loaded } = useDocData();
+  const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "invoice");
@@ -93,6 +93,9 @@ export function Invoice() {
         orientation={orientation}
         setOrientation={setOrientation}
         onSavePdf={savePdf}
+        guests={bookings}
+        activeId={data.booking.id}
+        onPick={pick}
       />
       <DocStatusBar status={docStatus.status} onSend={() => setSendOpen(true)} />
       <SendModal
@@ -219,7 +222,7 @@ export function Invoice() {
 
 // ============ RECEIPT ============
 export function Receipt() {
-  const { data, settings, currency, setCurrency, fmt, loaded } = useDocData();
+  const { data, settings, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [amt, setAmt] = useState("");
   const [kind, setKind] = useState("Balance");
@@ -286,6 +289,9 @@ export function Receipt() {
         orientation={orientation}
         setOrientation={setOrientation}
         onSavePdf={savePdf}
+        guests={bookings}
+        activeId={data.booking.id}
+        onPick={pick}
       />
       <DocStatusBar status={docStatus.status} onSend={() => setSendOpen(true)} />
       <SendModal
@@ -404,7 +410,7 @@ export function Receipt() {
 
 // ============ VILLA INSTRUCTIONS ============
 export function VillaInstructions() {
-  const { data, settings, loaded } = useDocData();
+  const { data, settings, loaded, bookings, pick } = useDocData();
   const [sendOpen, setSendOpen] = useState(false);
   const docStatus = useDocStatus(data?.booking.id, "instructions");
   const savePdf = async () => {
@@ -424,7 +430,7 @@ export function VillaInstructions() {
 
   return (
     <div className="max-w-[1000px] mx-auto">
-      <DocToolbar title="Villa Instructions" currency="AUD" setCurrency={() => {}} showCurrency={false} onSavePdf={savePdf} />
+      <DocToolbar title="Villa Instructions" currency="AUD" setCurrency={() => {}} showCurrency={false} onSavePdf={savePdf} guests={bookings} activeId={data.booking.id} onPick={pick} />
       <DocStatusBar status={docStatus.status} onSend={() => setSendOpen(true)} />
       <SendModal
         open={sendOpen}

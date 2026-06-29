@@ -4,6 +4,7 @@ import {
   loadSettings,
   loadSeasons,
   loadFxRates,
+  loadGuestStays,
   saveInquiry,
   findReturningGuest,
   type Season,
@@ -14,6 +15,7 @@ import {
 import { computePricing, makeFormatter, fmtDate, nightsBetween, type Charge } from "../lib/pricing";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { SectionHeader, Field } from "../components/ui";
+import { DatePicker } from "../components/DatePicker";
 
 interface ChargeRowState {
   desc: string;
@@ -68,8 +70,9 @@ export function NewInquiry() {
     { desc: "", qty: "1", unit: "" },
   ]);
   const [notes, setNotes] = useState("");
-  const [amountPaid, setAmountPaid] = useState("");
   const [source, setSource] = useState("Direct (website)");
+  // existing stays (to mark booked dates red + block overlaps)
+  const [booked, setBooked] = useState<{ check_in: string; check_out: string }[]>([]);
   const [applyTaxOverride, setApplyTaxOverride] = useState<boolean | null>(null);
   const [returningGuest, setReturningGuest] = useState<ReturningGuest | null>(null);
 
@@ -90,14 +93,20 @@ export function NewInquiry() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, se, fx] = await Promise.all([
+        const [s, se, fx, stays] = await Promise.all([
           loadSettings(),
           loadSeasons(),
           loadFxRates(),
+          loadGuestStays(),
         ]);
         setSettings(s);
         setSeasons(se);
         setFxRates(fx);
+        setBooked(
+          stays
+            .filter((r) => r.status !== "Cancelled" && r.check_in && r.check_out)
+            .map((r) => ({ check_in: r.check_in, check_out: r.check_out }))
+        );
         if (s.default_currency) setCurrency(s.default_currency);
       } catch (e) {
         console.error("Failed to load reference data", e);
@@ -127,7 +136,7 @@ export function NewInquiry() {
         seasons,
         override: override.trim() === "" ? null : num(override),
         charges: pricingCharges,
-        amountPaid: num(amountPaid),
+        amountPaid: 0,
         depositPct,
         source,
         taxMode,
@@ -137,7 +146,7 @@ export function NewInquiry() {
         otaPct,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [checkIn, checkOut, seasons, override, amountPaid, depositPct, source, taxMode, taxRate, applyTax, savingMode, otaPct, JSON.stringify(charges)]
+    [checkIn, checkOut, seasons, override, depositPct, source, taxMode, taxRate, applyTax, savingMode, otaPct, JSON.stringify(charges)]
   );
 
   const fmt = useMemo(() => makeFormatter(currency, fxRates), [currency, fxRates]);
@@ -164,10 +173,28 @@ export function NewInquiry() {
 
   const datesInverted = !!checkIn && !!checkOut && checkOut <= checkIn;
 
+  const addDaysLocal = (isoStr: string, n: number) => {
+    const d = new Date(isoStr + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  // earliest existing check-in after our check-in — the check-out can't go past it
+  const nextBookedStart = useMemo(() => {
+    if (!checkIn) return undefined;
+    return booked.filter((r) => r.check_in > checkIn).map((r) => r.check_in).sort()[0];
+  }, [booked, checkIn]);
+  const overlaps = useMemo(
+    () =>
+      !!checkIn && !!checkOut && checkOut > checkIn &&
+      booked.some((r) => checkIn < r.check_out && checkOut > r.check_in),
+    [checkIn, checkOut, booked]
+  );
+
   const handleSave = async () => {
     if (!guestName.trim()) return flash("Add a guest name first.");
     if (!checkIn || !checkOut) return flash("Add check-in and check-out dates.");
     if (datesInverted) return flash("Check-out must be after check-in.");
+    if (overlaps) return flash("Those dates overlap an existing booking.");
     try {
       const bookingId = await saveInquiry({
         guest: { full_name: guestName, country, email, whatsapp },
@@ -187,7 +214,7 @@ export function NewInquiry() {
           additional_total: p.additionalTotal,
           grand_total: p.grandTotal,
           deposit: p.deposit,
-          amount_paid: num(amountPaid),
+          amount_paid: 0,
           balance: p.balance,
           notes,
         },
@@ -209,6 +236,14 @@ export function NewInquiry() {
         color: "#C0392B",
         mark: "!",
         label: "Check-out must be after check-in.",
+      };
+    if (overlaps)
+      return {
+        bg: "#FDECEA",
+        border: "#F5B7B1",
+        color: "#C0392B",
+        mark: "!",
+        label: "These dates overlap an existing booking — the villa isn't available.",
       };
     if (p.minMet == null)
       return {
@@ -313,10 +348,17 @@ export function NewInquiry() {
           <SectionHeader>Stay Period</SectionHeader>
           <div className="grid grid-cols-2 gap-x-5 gap-y-4">
             <Field label="Check-in">
-              <input type="date" className="fv-input" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+              <DatePicker value={checkIn} onChange={setCheckIn} booked={booked} placeholder="Pick a date" />
             </Field>
             <Field label="Check-out">
-              <input type="date" className="fv-input" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+              <DatePicker
+                value={checkOut}
+                onChange={setCheckOut}
+                booked={booked}
+                min={checkIn ? addDaysLocal(checkIn, 1) : undefined}
+                max={nextBookedStart}
+                placeholder="Pick a date"
+              />
             </Field>
             <Field label="Guests · max 10">
               <input inputMode="numeric" className="fv-input" value={numGuests} onChange={(e) => setNumGuests(e.target.value)} />
@@ -503,15 +545,9 @@ export function NewInquiry() {
               {fmt(p.deposit)}
             </span>
           </div>
-          <label className="flex items-center justify-between py-2.5 border-b border-[#E6EDED]">
-            <span className="text-[14px] text-[#5E6B75]">Amount paid</span>
-            <div className="w-[140px]">
-              <MoneyInput value={amountPaid} onChange={setAmountPaid} small rightAlign />
-            </div>
-          </label>
-          <div className="flex items-center justify-between pt-4 pb-1">
-            <span className="text-[13px] font-semibold tracking-[1px] uppercase text-ink-900">Balance due</span>
-            <span className="text-[26px] font-medium text-fv-alert leading-none">{fmt(p.balance)}</span>
+          <div className="text-[12px] text-[#9AA7AE] pt-3 leading-[1.55]">
+            This is a price quote. Record the deposit and any payments under{" "}
+            <b className="text-[#7A8790]">Guests Stay</b> once the booking is confirmed.
           </div>
         </section>
       </div>

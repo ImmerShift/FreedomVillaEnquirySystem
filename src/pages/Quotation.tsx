@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { nightsBetween } from "../lib/pricing";
 import {
-  loadActiveBooking,
-  loadSettings,
-  loadFxRates,
-  type FullBooking,
-  type FxRate,
-  type Settings,
-} from "../db";
-import { makeFormatter, nightsBetween } from "../lib/pricing";
-import {
+  useDocData,
   useDocEdits,
   useDocStatus,
+  GuestPicker,
   Editable,
   PrintOrientation,
   DocControls,
@@ -52,28 +46,7 @@ const addDays = (iso: string, days: number): string => {
 
 export function Quotation() {
   const navigate = useNavigate();
-  const [data, setData] = useState<FullBooking | null>(null);
-  const [settings, setSettings] = useState<Settings>({});
-  const [fxRates, setFxRates] = useState<FxRate[]>([]);
-  const [currency, setCurrency] = useState("AUD");
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const [b, s, fx] = await Promise.all([
-        loadActiveBooking(),
-        loadSettings(),
-        loadFxRates(),
-      ]);
-      setData(b);
-      setSettings(s);
-      setFxRates(fx);
-      if (b) setCurrency(b.booking.currency || "AUD");
-      setLoaded(true);
-    })();
-  }, []);
-
-  const fmt = useMemo(() => makeFormatter(currency, fxRates), [currency, fxRates]);
+  const { data, settings, fxRates, currency, setCurrency, fmt, loaded, bookings, pick } = useDocData();
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [sendOpen, setSendOpen] = useState(false);
   const edits = useDocEdits(data?.booking.id, "quotation");
@@ -176,6 +149,7 @@ export function Quotation() {
           <h1 className="text-[38px] font-light text-fv-ink leading-[1.05] m-0">Quotation</h1>
         </div>
         <div className="flex items-center gap-3 flex-none">
+          <GuestPicker bookings={bookings} activeId={data.booking.id} onPick={pick} />
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
