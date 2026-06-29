@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   loadSettings,
   loadSeasons,
@@ -41,6 +41,7 @@ const BOOKING_SOURCES = [
 
 export function NewInquiry() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // reference data
   const [settings, setSettings] = useState<Settings>({});
@@ -77,6 +78,14 @@ export function NewInquiry() {
   const checkReturning = async () => {
     setReturningGuest(email.trim() ? await findReturningGuest(email) : null);
   };
+
+  // pre-fill dates when arriving from the Availability "Fill gap" action
+  useEffect(() => {
+    const s = location.state as { checkIn?: string; checkOut?: string } | null;
+    if (s?.checkIn) setCheckIn(s.checkIn);
+    if (s?.checkOut) setCheckOut(s.checkOut);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     (async () => {
