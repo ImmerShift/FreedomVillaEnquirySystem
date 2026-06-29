@@ -243,6 +243,9 @@ export function Settings() {
           <Field label="Invoice due (days)">
             {sInput("invoice_due_days", { inputMode: "numeric" })}
           </Field>
+          <Field label="Cleaning buffer (days)">
+            {sInput("buffer_days", { inputMode: "numeric", placeholder: "0" })}
+          </Field>
           <Field label="Rate inclusions — shown on every quotation" full>
             <textarea
               className="fv-input min-h-[120px] resize-y !text-[14px] leading-[1.6]"

@@ -4,9 +4,15 @@ import {
   loadGuestStays,
   loadSeasons,
   loadFxRates,
+  loadSettings,
+  loadHolds,
+  addHold,
+  releaseHold,
+  autoReleaseExpiredHolds,
   type GuestStayRow,
   type Season,
   type FxRate,
+  type Hold,
 } from "../db";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { nightsBetween, fmtDate, findSeason, makeFormatter } from "../lib/pricing";
@@ -20,16 +26,20 @@ const MONTHS = [
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const nextDay = (isoStr: string) => {
+const addIso = (isoStr: string, n: number) => {
   const d = new Date(isoStr + "T00:00:00");
-  d.setDate(d.getDate() + 1);
+  d.setDate(d.getDate() + n);
   return iso(d);
 };
+const nextDay = (isoStr: string) => addIso(isoStr, 1);
 
 type Tone = "confirmed" | "pending";
 const toneOf = (r: GuestStayRow): Tone => (r.amount_paid > 0 ? "confirmed" : "pending");
 const TONE_BG: Record<Tone, string> = { confirmed: "#E7F4F3", pending: "#FDF6E8" };
 const TONE_BAR: Record<Tone, string> = { confirmed: "#15A3A0", pending: "#E0B23C" };
+
+const HOLD_BG = "repeating-linear-gradient(135deg, #FBF1DA, #FBF1DA 6px, #F4E4BD 6px, #F4E4BD 12px)";
+const CLEAN_BG = "repeating-linear-gradient(135deg, #F2F5F6, #F2F5F6 5px, #E9EDEF 5px, #E9EDEF 10px)";
 
 const SEASON_BG: Record<string, string> = { Low: "#F2F8EC", High: "#FDF8EC", Peak: "#FBEFEC" };
 const SEASON_TEXT: Record<string, string> = { Low: "#6E9456", High: "#B7841F", Peak: "#C0563B" };
@@ -50,15 +60,43 @@ export function Availability() {
   const [rows, setRows] = useState<GuestStayRow[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
+  const [holds, setHolds] = useState<Hold[]>([]);
+  const [buffer, setBuffer] = useState(0);
   const [revView, setRevView] = useState(false);
 
+  // filters
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [showSeasons, setShowSeasons] = useState(true);
+  const [showHolds, setShowHolds] = useState(true);
+  const [showGaps, setShowGaps] = useState(true);
+
+  // hold form
+  const [showHoldForm, setShowHoldForm] = useState(false);
+  const [holdForm, setHoldForm] = useState({
+    guest_name: "",
+    check_in: "",
+    check_out: "",
+    expires_on: "",
+  });
+
+  const reload = async () => {
+    await autoReleaseExpiredHolds();
+    const [all, se, fx, st, hs] = await Promise.all([
+      loadGuestStays(),
+      loadSeasons(),
+      loadFxRates(),
+      loadSettings(),
+      loadHolds(),
+    ]);
+    setRows(all.filter((r) => r.status !== "Cancelled"));
+    setSeasons(se);
+    setFxRates(fx);
+    setBuffer(Math.max(0, parseInt(st.buffer_days || "0", 10) || 0));
+    setHolds(hs);
+  };
+
   useEffect(() => {
-    (async () => {
-      const [all, se, fx] = await Promise.all([loadGuestStays(), loadSeasons(), loadFxRates()]);
-      setRows(all.filter((r) => r.status !== "Cancelled"));
-      setSeasons(se);
-      setFxRates(fx);
-    })();
+    reload();
   }, []);
 
   const year = view.getFullYear();
@@ -68,6 +106,15 @@ export function Availability() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayIso = iso(today);
   const fmtAud = useMemo(() => makeFormatter("AUD", fxRates), [fxRates]);
+
+  const sources = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.source).filter(Boolean))).sort(),
+    [rows]
+  );
+  const visibleRows = useMemo(
+    () => (sourceFilter ? rows.filter((r) => r.source === sourceFilter) : rows),
+    [rows, sourceFilter]
+  );
 
   const cells = useMemo(() => {
     const first = new Date(year, month, 1);
@@ -80,10 +127,29 @@ export function Availability() {
   }, [year, month]);
 
   const bookingOn = (dayIso: string) =>
-    rows.find((r) => r.check_in && r.check_out && dayIso >= r.check_in && dayIso < r.check_out);
+    visibleRows.find((r) => r.check_in && r.check_out && dayIso >= r.check_in && dayIso < r.check_out);
+  const arrivingOn = (dayIso: string) => visibleRows.find((r) => r.check_in === dayIso);
+  const departingOn = (dayIso: string) => visibleRows.find((r) => r.check_out === dayIso);
+  const holdOn = (dayIso: string) => holds.find((h) => dayIso >= h.check_in && dayIso < h.check_out);
+  const isHeld = (dayIso: string) => holds.some((h) => dayIso >= h.check_in && dayIso < h.check_out);
 
-  const monthBookings = rows
+  // cleaning/turnaround days: the `buffer` days after each checkout, when otherwise free
+  const cleaningDays = useMemo(() => {
+    const set = new Set<string>();
+    if (buffer <= 0) return set;
+    for (const r of visibleRows) {
+      if (!r.check_out) continue;
+      for (let k = 0; k < buffer; k++) set.add(addIso(r.check_out, k));
+    }
+    return set;
+  }, [visibleRows, buffer]);
+
+  const monthBookings = visibleRows
     .filter((r) => r.check_in && r.check_out && r.check_in <= monthEnd && r.check_out > monthStart)
+    .sort((a, b) => a.check_in.localeCompare(b.check_in));
+
+  const monthHolds = holds
+    .filter((h) => h.check_in <= monthEnd && h.check_out > monthStart)
     .sort((a, b) => a.check_in.localeCompare(b.check_in));
 
   let bookedNights = 0;
@@ -92,7 +158,7 @@ export function Availability() {
   }
   const occPct = Math.round((bookedNights / daysInMonth) * 100);
 
-  // gaps: runs of >= 3 consecutive free days in the month
+  // gaps: runs of >= 3 consecutive bookable days (not booked, held or being cleaned)
   const { gapDays, gapList } = useMemo(() => {
     const gapDays = new Map<string, Gap>();
     const gapList: Gap[] = [];
@@ -107,13 +173,13 @@ export function Availability() {
     };
     for (let day = 1; day <= daysInMonth; day++) {
       const di = iso(new Date(year, month, day));
-      if (!bookingOn(di)) run.push(di);
+      if (!bookingOn(di) && !isHeld(di) && !cleaningDays.has(di)) run.push(di);
       else flush();
     }
     flush();
     return { gapDays, gapList };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, year, month]);
+  }, [visibleRows, holds, cleaningDays, year, month]);
 
   const openGapNights = gapList.reduce((n, g) => n + g.nights, 0);
 
@@ -138,13 +204,25 @@ export function Availability() {
   const fillGap = (g: Gap) =>
     navigate("/inquiry", { state: { checkIn: g.start, checkOut: nextDay(g.end) } });
 
+  const submitHold = async () => {
+    if (!holdForm.check_in || !holdForm.check_out || holdForm.check_out <= holdForm.check_in) return;
+    await addHold({ ...holdForm, note: "" });
+    setHoldForm({ guest_name: "", check_in: "", check_out: "", expires_on: "" });
+    setShowHoldForm(false);
+    await reload();
+  };
+  const onRelease = async (id: number) => {
+    await releaseHold(id);
+    await reload();
+  };
+
   return (
     <div className="max-w-[1180px] mx-auto">
       <div className="flex items-end justify-between gap-6 mb-[26px] flex-wrap">
         <PageTitle
           eyebrow="Calendar"
           title="Availability"
-          subtitle="Stays, seasons, gaps and revenue — in one view."
+          subtitle="Stays, holds, seasons, gaps and revenue — in one view."
         />
         <button
           onClick={() => setRevView((v) => !v)}
@@ -165,6 +243,24 @@ export function Availability() {
             <NavBtn dir="next" onClick={() => setView(new Date(year, month + 1, 1))} />
           </div>
 
+          {/* FILTERS */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="fv-input !w-auto !py-1.5 !px-2.5 !text-[12px] cursor-pointer appearance-none"
+            >
+              <option value="">All sources</option>
+              {sources.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <span className="w-px h-5 bg-[#E6EDED]" />
+            <FilterChip active={showSeasons} onClick={() => setShowSeasons((v) => !v)}>Seasons</FilterChip>
+            <FilterChip active={showHolds} onClick={() => setShowHolds((v) => !v)}>Holds</FilterChip>
+            <FilterChip active={showGaps} onClick={() => setShowGaps((v) => !v)}>Gaps</FilterChip>
+          </div>
+
           <div className="grid grid-cols-7 gap-1.5 mb-2">
             {WEEKDAYS.map((w) => (
               <span key={w} className="text-[10px] font-bold tracking-[1px] uppercase text-[#9AA7AE] text-center">
@@ -178,19 +274,32 @@ export function Availability() {
               const dIso = iso(d);
               const inMonth = d.getMonth() === month;
               const b = inMonth ? bookingOn(dIso) : undefined;
-              const season = inMonth && !b ? findSeason(seasons, dIso) : null;
-              const gap = inMonth && !b ? gapDays.get(dIso) : undefined;
+              const dep = inMonth ? departingOn(dIso) : undefined;
+              const arr = inMonth ? arrivingOn(dIso) : undefined;
+              const sameDay = !!(dep && arr && dep.id !== arr.id);
+              const hold = inMonth && !b && showHolds ? holdOn(dIso) : undefined;
+              const cleaning = inMonth && !b && !hold && cleaningDays.has(dIso);
+              const season = inMonth && !b && !hold && !cleaning && showSeasons ? findSeason(seasons, dIso) : null;
+              const gap = inMonth && !b && !hold && !cleaning && showGaps ? gapDays.get(dIso) : undefined;
               const tone = b ? toneOf(b) : null;
               const isCheckIn = b && dIso === b.check_in;
               const isGapStart = gap && gap.start === dIso;
               const isToday = dIso === todayIso;
-              const bg = b
-                ? TONE_BG[tone as Tone]
-                : season
-                ? SEASON_BG[season.name] || "#FFFFFF"
-                : inMonth
-                ? "#FFFFFF"
-                : "#FAFCFC";
+
+              let bg = inMonth ? "#FFFFFF" : "#FAFCFC";
+              let bgImage: string | undefined;
+              if (b && sameDay) {
+                bgImage = `linear-gradient(135deg, ${TONE_BG[toneOf(dep!)]} 0 50%, ${TONE_BG[toneOf(arr!)]} 50% 100%)`;
+              } else if (b) {
+                bg = TONE_BG[tone as Tone];
+              } else if (hold) {
+                bgImage = HOLD_BG;
+              } else if (cleaning) {
+                bgImage = CLEAN_BG;
+              } else if (season) {
+                bg = SEASON_BG[season.name] || "#FFFFFF";
+              }
+
               return (
                 <div
                   key={i}
@@ -200,21 +309,50 @@ export function Availability() {
                   } ${
                     gap
                       ? "border border-dashed border-[#E0B23C]"
+                      : hold
+                      ? "border border-dashed border-[#CFA13B]"
                       : isToday
                       ? "border border-fv-accent"
                       : "border border-[#EEF1F1]"
                   }`}
-                  style={{ background: bg, borderLeft: b ? `3px solid ${TONE_BAR[tone as Tone]}` : undefined }}
+                  style={{
+                    background: bg,
+                    backgroundImage: bgImage,
+                    borderLeft: b ? `3px solid ${TONE_BAR[tone as Tone]}` : undefined,
+                  }}
                 >
                   <div className={`text-[12.5px] font-semibold ${inMonth ? "text-[#3F4B55]" : "text-[#C3CFCF]"}`}>
                     {d.getDate()}
                   </div>
+                  {sameDay && (
+                    <div
+                      className="absolute top-1 right-1.5 text-[10px] font-bold text-fv-accent-deep leading-none"
+                      title={`${dep!.guest_name} out · ${arr!.guest_name} in`}
+                    >
+                      ⇄
+                    </div>
+                  )}
                   {isCheckIn && (
                     <div className="text-[11px] font-semibold text-fv-ink mt-1 leading-tight truncate">
                       {revView ? compactAud(b!.grand_total) : b!.guest_name}
                     </div>
                   )}
-                  {!b && season && !revView && (
+                  {hold && dIso === hold.check_in && (
+                    <div className="text-[11px] font-semibold text-[#9C7B1E] mt-1 leading-tight truncate">
+                      {hold.guest_name || "On hold"}
+                    </div>
+                  )}
+                  {hold && (
+                    <div className="absolute bottom-1 left-2 text-[8.5px] font-bold tracking-[0.6px] text-[#B98F22]">
+                      HOLD
+                    </div>
+                  )}
+                  {cleaning && (
+                    <div className="absolute bottom-1 left-2 text-[8.5px] font-semibold text-[#94A2A8]">
+                      Cleaning
+                    </div>
+                  )}
+                  {!b && !hold && !cleaning && season && !revView && (
                     <div className="absolute bottom-1 left-2 text-[8.5px] font-semibold" style={{ color: SEASON_TEXT[season.name] || "#9AA7AE" }}>
                       {season.name} · {compactAud(season.nightly_rate)}
                     </div>
@@ -234,15 +372,25 @@ export function Availability() {
             <Stat label="Occupancy" value={`${occPct}%`} />
             <Stat label="Confirmed revenue" value={fmtAud(confirmedRevenue)} accent />
             <Stat label="Open gap nights" value={String(openGapNights)} />
-            <Stat label="Tentative holds" value="—" />
+            <Stat label="Tentative holds" value={String(monthHolds.length)} />
           </div>
 
           <div className="flex items-center gap-4 mt-5 pt-4 border-t border-[#EEF4F4] flex-wrap">
             <Legend bar="#15A3A0" bg="#E7F4F3" label="Confirmed" />
             <Legend bar="#E0B23C" bg="#FDF6E8" label="Pending" />
             <span className="flex items-center gap-2 text-[12px] text-[#6B7780]">
+              <span className="w-3.5 h-3.5 rounded-[3px] border border-dashed border-[#CFA13B]" style={{ backgroundImage: HOLD_BG }} />
+              Hold
+            </span>
+            {buffer > 0 && (
+              <span className="flex items-center gap-2 text-[12px] text-[#6B7780]">
+                <span className="w-3.5 h-3.5 rounded-[3px] border border-[#E2E8EA]" style={{ backgroundImage: CLEAN_BG }} />
+                Cleaning
+              </span>
+            )}
+            <span className="flex items-center gap-2 text-[12px] text-[#6B7780]">
               <span className="w-3.5 h-3.5 rounded-[3px] border border-dashed border-[#E0B23C] bg-white" />
-              Gap (3+ nights) — click to fill
+              Gap (3+ nights)
             </span>
           </div>
         </div>
@@ -260,6 +408,113 @@ export function Availability() {
               <div className="h-[7px] rounded-full bg-white/20 overflow-hidden">
                 <div className="h-full rounded-full bg-fv-accent-tint" style={{ width: `${occPct}%` }} />
               </div>
+            )}
+          </div>
+
+          {/* TENTATIVE HOLDS */}
+          <div className="fv-card p-7">
+            <div className="flex items-center justify-between mb-3">
+              <div className="fv-section-label">Tentative holds</div>
+              <button
+                onClick={() => setShowHoldForm((v) => !v)}
+                className="text-[12px] font-semibold text-fv-accent-deep hover:underline"
+              >
+                {showHoldForm ? "Cancel" : "+ Add hold"}
+              </button>
+            </div>
+
+            {showHoldForm && (
+              <div className="mb-4 p-3 bg-[#FAFCFC] border border-[#EEF1F1] rounded-lg flex flex-col gap-2.5">
+                <input
+                  className="fv-input !py-2 !px-3 !text-[13px]"
+                  placeholder="Guest / enquiry name"
+                  value={holdForm.guest_name}
+                  onChange={(e) => setHoldForm((f) => ({ ...f, guest_name: e.target.value }))}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold tracking-[0.8px] uppercase text-[#9AA7AE]">Check-in</span>
+                    <input
+                      type="date"
+                      className="fv-input !py-2 !px-2.5 !text-[12px]"
+                      value={holdForm.check_in}
+                      onChange={(e) => setHoldForm((f) => ({ ...f, check_in: e.target.value }))}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold tracking-[0.8px] uppercase text-[#9AA7AE]">Check-out</span>
+                    <input
+                      type="date"
+                      className="fv-input !py-2 !px-2.5 !text-[12px]"
+                      value={holdForm.check_out}
+                      onChange={(e) => setHoldForm((f) => ({ ...f, check_out: e.target.value }))}
+                    />
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold tracking-[0.8px] uppercase text-[#9AA7AE]">Expires (auto-release)</span>
+                  <input
+                    type="date"
+                    className="fv-input !py-2 !px-2.5 !text-[12px]"
+                    value={holdForm.expires_on}
+                    onChange={(e) => setHoldForm((f) => ({ ...f, expires_on: e.target.value }))}
+                  />
+                </label>
+                <button
+                  onClick={submitHold}
+                  disabled={!holdForm.check_in || !holdForm.check_out || holdForm.check_out <= holdForm.check_in}
+                  className="btn-accent !py-2 !text-[13px] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Add hold
+                </button>
+              </div>
+            )}
+
+            {holds.length === 0 ? (
+              <div className="text-[13px] text-[#9AA7AE] italic">No active holds.</div>
+            ) : (
+              holds.map((h) => {
+                const daysLeft = h.expires_on
+                  ? Math.ceil(
+                      (Date.parse(h.expires_on + "T00:00:00") - Date.parse(todayIso + "T00:00:00")) / 86_400_000
+                    )
+                  : null;
+                return (
+                  <div
+                    key={h.id}
+                    className="flex items-stretch gap-3 py-3 border-b border-[#EEF4F4] last:border-b-0"
+                  >
+                    <span className="w-1 rounded-full flex-none" style={{ background: "#CFA13B" }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-[14px] font-semibold text-fv-ink truncate">
+                          {h.guest_name || "On hold"}
+                        </span>
+                        <button
+                          onClick={() => onRelease(h.id)}
+                          className="text-[12px] font-semibold text-[#9AA7AE] hover:text-[#C0392B] flex-none"
+                        >
+                          Release
+                        </button>
+                      </div>
+                      <div className="text-[12px] text-[#7A8790]">
+                        {fmtDate(h.check_in)} → {fmtDate(h.check_out)} · {nightsBetween(h.check_in, h.check_out)} nights
+                      </div>
+                      <div className="text-[11px] mt-0.5">
+                        {daysLeft == null ? (
+                          <span className="text-[#9AA7AE]">No expiry</span>
+                        ) : daysLeft <= 2 ? (
+                          <span className="text-[#C0563B] font-semibold">
+                            Expires in {daysLeft}d
+                          </span>
+                        ) : (
+                          <span className="text-[#9AA7AE]">Expires in {daysLeft}d</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -321,6 +576,29 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
       <div className="text-[9px] font-bold tracking-[1.2px] uppercase text-[#9AA7AE] mb-1.5">{label}</div>
       <div className={`text-[20px] font-medium leading-none ${accent ? "text-fv-accent-deep" : "text-fv-ink"}`}>{value}</div>
     </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[12px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+        active
+          ? "bg-fv-accent-soft text-fv-accent-deep border-fv-accent-soft-border"
+          : "bg-white text-[#9AA7AE] border-[#E2E8EA] hover:border-[#C5D2D2]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

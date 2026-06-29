@@ -250,6 +250,24 @@ Full staff: butlers, security, villa manager, ground crew' WHERE key = 'inclusio
       "#,
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 11,
+      description: "wave C: tentative holds + cleaning buffer setting",
+      sql: r#"
+        CREATE TABLE IF NOT EXISTS holds (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          guest_name TEXT,
+          check_in   TEXT NOT NULL,
+          check_out  TEXT NOT NULL,
+          expires_on TEXT,                  -- ISO date; null = no expiry
+          note       TEXT,
+          released   INTEGER DEFAULT 0,     -- 1 = manually or auto-released
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('buffer_days', '0');
+      "#,
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

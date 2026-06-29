@@ -308,6 +308,8 @@ export async function exportAllData(): Promise<unknown> {
     "personalizations",
     "doc_fields",
     "doc_status",
+    "follow_ups",
+    "holds",
   ];
   const data: Record<string, unknown[]> = {};
   for (const t of tables) {
@@ -615,6 +617,55 @@ export async function savePersonalization(p: Personalization): Promise<void> {
     p.completed_at ? "Received" : "Pending",
     p.booking_id,
   ]);
+}
+
+// ---- tentative holds (Availability) ----
+
+export interface Hold {
+  id: number;
+  guest_name: string | null;
+  check_in: string;
+  check_out: string;
+  expires_on: string | null;
+  note: string | null;
+  released: number;
+  created_at: string;
+}
+
+/** Marks any non-released hold whose expiry date has passed as released. */
+export async function autoReleaseExpiredHolds(): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    "UPDATE holds SET released = 1 WHERE released = 0 AND expires_on IS NOT NULL AND expires_on < date('now')"
+  );
+}
+
+/** Active (not released) holds, soonest stay first. */
+export async function loadHolds(): Promise<Hold[]> {
+  const db = await getDb();
+  return db.select<Hold[]>(
+    "SELECT * FROM holds WHERE released = 0 ORDER BY check_in, id"
+  );
+}
+
+export async function addHold(h: {
+  guest_name: string;
+  check_in: string;
+  check_out: string;
+  expires_on: string;
+  note: string;
+}): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    "INSERT INTO holds (guest_name, check_in, check_out, expires_on, note) VALUES ($1,$2,$3,$4,$5)",
+    [h.guest_name || null, h.check_in, h.check_out, h.expires_on || null, h.note || null]
+  );
+}
+
+/** Releases a hold (frees its dates) without deleting the record. */
+export async function releaseHold(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE holds SET released = 1 WHERE id = $1", [id]);
 }
 
 /** All bookings, newest stays first, for the Guests Stay pipeline. */
