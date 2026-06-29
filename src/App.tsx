@@ -17,6 +17,7 @@ import { GuestsStay } from "./pages/GuestsStay";
 import { Personalization } from "./pages/Personalization";
 import { Availability } from "./pages/Availability";
 import { Home } from "./pages/Home";
+import { Help } from "./pages/Help";
 
 interface NavItem {
   to: string;
@@ -36,7 +37,10 @@ const DOCUMENTS: NavItem[] = [
   { to: "/personalization", label: "Personalization" },
   { to: "/instructions", label: "Villa Instructions" },
 ];
-const SETUP: NavItem[] = [{ to: "/settings", label: "Settings" }];
+const SETUP: NavItem[] = [
+  { to: "/settings", label: "Settings" },
+  { to: "/help", label: "Help" },
+];
 
 function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
   const navigate = useNavigate();
@@ -149,6 +153,7 @@ export default function App() {
             <Route path="/personalization" element={<Personalization />} />
             <Route path="/instructions" element={<VillaInstructions />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/help" element={<Help />} />
           </Routes>
         </main>
       </div>
