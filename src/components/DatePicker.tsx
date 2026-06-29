@@ -33,6 +33,7 @@ export function DatePicker({
   max,
   booked = [],
   placeholder = "Select date",
+  align = "left",
 }: {
   value: string;
   onChange: (iso: string) => void;
@@ -40,6 +41,7 @@ export function DatePicker({
   max?: string;
   booked?: BookedRange[];
   placeholder?: string;
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -108,7 +110,7 @@ export function DatePicker({
       </button>
 
       {open && (
-        <div className="absolute z-40 mt-1.5 left-0 w-[300px] bg-white border border-[#E2EAEA] rounded-xl shadow-[0_16px_40px_rgba(27,58,91,0.18)] p-3">
+        <div className={`absolute z-40 mt-1.5 ${align === "right" ? "right-0" : "left-0"} w-[300px] bg-white border border-[#E2EAEA] rounded-xl shadow-[0_16px_40px_rgba(27,58,91,0.18)] p-3`}>
           <div className="flex items-center justify-between mb-2.5">
             <NavBtn dir="prev" onClick={() => setView(new Date(y, m - 1, 1))} />
             <div className="text-[14px] font-semibold text-fv-ink">

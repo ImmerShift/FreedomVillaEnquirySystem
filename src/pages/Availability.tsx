@@ -35,8 +35,13 @@ const nextDay = (isoStr: string) => addIso(isoStr, 1);
 
 type Tone = "confirmed" | "pending";
 const toneOf = (r: GuestStayRow): Tone => (r.amount_paid > 0 ? "confirmed" : "pending");
-const TONE_BG: Record<Tone, string> = { confirmed: "#E7F4F3", pending: "#FDF6E8" };
-const TONE_BAR: Record<Tone, string> = { confirmed: "#15A3A0", pending: "#E0B23C" };
+// red = the villa is taken. Solid/stronger red = paid, lighter red = deposit/pending.
+const TONE_BG: Record<Tone, string> = { confirmed: "#EFA3A0", pending: "#FBE3E2" };
+const TONE_BAR: Record<Tone, string> = { confirmed: "#B5302C", pending: "#E2918C" };
+
+// open dates (was "gap") use green so they read as "free to sell"
+const OPEN_BORDER = "#7FB04A";
+const OPEN_TEXT = "#3B6D11";
 
 const HOLD_BG = "repeating-linear-gradient(135deg, #FBF1DA, #FBF1DA 6px, #F4E4BD 6px, #F4E4BD 12px)";
 const CLEAN_BG = "repeating-linear-gradient(135deg, #F2F5F6, #F2F5F6 5px, #E9EDEF 5px, #E9EDEF 10px)";
@@ -222,7 +227,7 @@ export function Availability() {
         <PageTitle
           eyebrow="Calendar"
           title="Availability"
-          subtitle="Stays, holds, seasons, gaps and revenue — in one view."
+          subtitle="Stays, holds, seasons, open dates and revenue — in one view."
         />
         <button
           onClick={() => setRevView((v) => !v)}
@@ -308,7 +313,7 @@ export function Availability() {
                     b || gap ? "cursor-pointer" : ""
                   } ${
                     gap
-                      ? "border border-dashed border-[#E0B23C]"
+                      ? "border border-dashed"
                       : hold
                       ? "border border-dashed border-[#CFA13B]"
                       : isToday
@@ -318,6 +323,7 @@ export function Availability() {
                   style={{
                     background: bg,
                     backgroundImage: bgImage,
+                    borderColor: gap ? OPEN_BORDER : undefined,
                     borderLeft: b ? `3px solid ${TONE_BAR[tone as Tone]}` : undefined,
                   }}
                 >
@@ -358,8 +364,8 @@ export function Availability() {
                     </div>
                   )}
                   {isGapStart && (
-                    <div className="absolute bottom-1 right-1.5 text-[8.5px] font-bold text-[#B7841F]">
-                      fill {gap!.nights}n →
+                    <div className="absolute bottom-1 right-1.5 text-[8.5px] font-bold" style={{ color: OPEN_TEXT }}>
+                      {gap!.nights} open →
                     </div>
                   )}
                 </div>
@@ -371,13 +377,13 @@ export function Availability() {
           <div className="grid grid-cols-4 gap-3 mt-5">
             <Stat label="Occupancy" value={`${occPct}%`} />
             <Stat label="Confirmed revenue" value={fmtAud(confirmedRevenue)} accent />
-            <Stat label="Open gap nights" value={String(openGapNights)} />
+            <Stat label="Open nights" value={String(openGapNights)} />
             <Stat label="Tentative holds" value={String(monthHolds.length)} />
           </div>
 
           <div className="flex items-center gap-4 mt-5 pt-4 border-t border-[#EEF4F4] flex-wrap">
-            <Legend bar="#15A3A0" bg="#E7F4F3" label="Confirmed" />
-            <Legend bar="#E0B23C" bg="#FDF6E8" label="Pending" />
+            <Legend bar={TONE_BAR.confirmed} bg={TONE_BG.confirmed} label="Booked · paid" />
+            <Legend bar={TONE_BAR.pending} bg={TONE_BG.pending} label="Booked · deposit" />
             <span className="flex items-center gap-2 text-[12px] text-[#6B7780]">
               <span className="w-3.5 h-3.5 rounded-[3px] border border-dashed border-[#CFA13B]" style={{ backgroundImage: HOLD_BG }} />
               Hold
@@ -389,8 +395,8 @@ export function Availability() {
               </span>
             )}
             <span className="flex items-center gap-2 text-[12px] text-[#6B7780]">
-              <span className="w-3.5 h-3.5 rounded-[3px] border border-dashed border-[#E0B23C] bg-white" />
-              Gap (3+ nights)
+              <span className="w-3.5 h-3.5 rounded-[3px] border border-dashed bg-white" style={{ borderColor: OPEN_BORDER }} />
+              Open dates (3+ nights)
             </span>
           </div>
         </div>
@@ -520,7 +526,7 @@ export function Availability() {
 
           {gapList.length > 0 && (
             <div className="fv-card p-7">
-              <div className="fv-section-label mb-3">Gaps to fill</div>
+              <div className="fv-section-label mb-3">Open dates</div>
               {gapList.map((g, i) => (
                 <button
                   key={i}

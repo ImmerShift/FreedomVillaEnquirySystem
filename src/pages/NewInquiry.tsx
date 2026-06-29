@@ -358,13 +358,14 @@ export function NewInquiry() {
                 min={checkIn ? addDaysLocal(checkIn, 1) : undefined}
                 max={nextBookedStart}
                 placeholder="Pick a date"
+                align="right"
               />
             </Field>
             <Field label="Guests · max 10">
               <input inputMode="numeric" className="fv-input" value={numGuests} onChange={(e) => setNumGuests(e.target.value)} />
             </Field>
             <Field label="Inquiry date">
-              <input type="date" className="fv-input" value={inquiryDate} onChange={(e) => setInquiryDate(e.target.value)} />
+              <DatePicker value={inquiryDate} onChange={setInquiryDate} placeholder="Pick a date" align="right" />
             </Field>
             <Field label="Booking source" full>
               <select
