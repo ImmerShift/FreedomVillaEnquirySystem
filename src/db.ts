@@ -475,6 +475,7 @@ export async function loadActiveBooking(): Promise<FullBooking | null> {
 export interface GuestStayRow {
   id: number;
   guest_name: string;
+  email: string | null;
   country: string | null;
   check_in: string;
   check_out: string;
@@ -482,11 +483,35 @@ export interface GuestStayRow {
   grand_total: number;
   amount_paid: number;
   currency: string;
+  source: string;
   quote_status: string;
   invoice_status: string;
   personalize_status: string;
   quote_sent_at: string | null;
   status: string;
+}
+
+export interface ReturningGuest {
+  full_name: string;
+  check_in: string;
+  check_out: string;
+}
+
+/** Most recent prior stay for a guest email (for the returning-guest banner), or null. */
+export async function findReturningGuest(
+  email: string
+): Promise<ReturningGuest | null> {
+  const e = (email || "").trim();
+  if (!e) return null;
+  const db = await getDb();
+  const rows = await db.select<ReturningGuest[]>(
+    `SELECT g.full_name, b.check_in, b.check_out
+     FROM bookings b JOIN guests g ON g.id = b.guest_id
+     WHERE LOWER(g.email) = LOWER($1) AND b.status != 'Cancelled'
+     ORDER BY b.check_in DESC LIMIT 1`,
+    [e]
+  );
+  return rows[0] ?? null;
 }
 
 /** Marks a booking cancelled (or restores it). Reversible. */
@@ -556,9 +581,10 @@ export async function savePersonalization(p: Personalization): Promise<void> {
 export async function loadGuestStays(): Promise<GuestStayRow[]> {
   const db = await getDb();
   return db.select<GuestStayRow[]>(`
-    SELECT b.id, COALESCE(g.full_name, '—') AS guest_name, g.country,
+    SELECT b.id, COALESCE(g.full_name, '—') AS guest_name, g.email, g.country,
            b.check_in, b.check_out, b.num_guests, b.grand_total, b.amount_paid,
-           b.currency, b.status, b.quote_status, b.invoice_status, b.personalize_status,
+           b.currency, COALESCE(b.source, 'Direct (website)') AS source,
+           b.status, b.quote_status, b.invoice_status, b.personalize_status,
            qs.sent_at AS quote_sent_at
     FROM bookings b
     LEFT JOIN guests g ON g.id = b.guest_id

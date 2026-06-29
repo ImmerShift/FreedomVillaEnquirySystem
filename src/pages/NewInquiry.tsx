@@ -5,11 +5,13 @@ import {
   loadSeasons,
   loadFxRates,
   saveInquiry,
+  findReturningGuest,
   type Season,
   type FxRate,
   type Settings,
+  type ReturningGuest,
 } from "../db";
-import { computePricing, makeFormatter, type Charge } from "../lib/pricing";
+import { computePricing, makeFormatter, fmtDate, nightsBetween, type Charge } from "../lib/pricing";
 import { setActiveBookingId } from "../lib/activeBooking";
 import { SectionHeader, Field } from "../components/ui";
 
@@ -68,8 +70,13 @@ export function NewInquiry() {
   const [amountPaid, setAmountPaid] = useState("");
   const [source, setSource] = useState("Direct (website)");
   const [applyTaxOverride, setApplyTaxOverride] = useState<boolean | null>(null);
+  const [returningGuest, setReturningGuest] = useState<ReturningGuest | null>(null);
 
   const [toast, setToast] = useState("");
+
+  const checkReturning = async () => {
+    setReturningGuest(email.trim() ? await findReturningGuest(email) : null);
+  };
 
   useEffect(() => {
     (async () => {
@@ -245,6 +252,17 @@ export function NewInquiry() {
         </div>
       </div>
 
+      {/* returning guest banner */}
+      {returningGuest && (
+        <div className="flex items-center gap-2.5 mb-6 px-4 py-3 bg-fv-accent-soft border border-fv-accent-soft-border rounded-lg">
+          <span className="text-[16px]">↩</span>
+          <span className="text-[13.5px] text-[#33474A]">
+            <b className="font-semibold">Returning guest</b> — {returningGuest.full_name} previously stayed{" "}
+            {fmtDate(returningGuest.check_in)} → {fmtDate(returningGuest.check_out)} ({nightsBetween(returningGuest.check_in, returningGuest.check_out)} nights).
+          </span>
+        </div>
+      )}
+
       {/* guest + stay */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         <section className="fv-card p-7">
@@ -257,7 +275,7 @@ export function NewInquiry() {
               <input className="fv-input" placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
             </Field>
             <Field label="Email">
-              <input className="fv-input" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="fv-input" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={checkReturning} />
             </Field>
             <Field label="WhatsApp">
               <input className="fv-input" placeholder="+00 000 000 000" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />

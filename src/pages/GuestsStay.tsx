@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   loadGuestStays,
@@ -41,11 +41,35 @@ function personalizeChip(status: string): { tone: ChipTone; text: string } {
     : { tone: "grey", text: "Pending" };
 }
 
+const SOURCE_FILTERS = [
+  "All",
+  "Direct (website)",
+  "Direct (phone)",
+  "Direct (WhatsApp)",
+  "OTA — Airbnb",
+  "OTA — Booking.com",
+  "OTA — VRBO",
+  "Agent",
+];
+const STATUS_FILTERS = ["All", "Enquiry", "Quoted", "Part-paid", "Paid", "Cancelled"];
+
+function deriveStatus(r: GuestStayRow): string {
+  if (r.status === "Cancelled") return "Cancelled";
+  if (r.grand_total > 0 && r.amount_paid >= r.grand_total) return "Paid";
+  if (r.amount_paid > 0) return "Part-paid";
+  if (r.quote_sent_at) return "Quoted";
+  return "Enquiry";
+}
+
 export function GuestsStay() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<GuestStayRow[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [search, setSearch] = useState("");
+  const [monthF, setMonthF] = useState("");
+  const [sourceF, setSourceF] = useState("All");
+  const [statusF, setStatusF] = useState("All");
 
   const reload = async () => {
     const [r, fx] = await Promise.all([loadGuestStays(), loadFxRates()]);
@@ -67,13 +91,74 @@ export function GuestsStay() {
     reload();
   };
 
+  // emails appearing on more than one booking → returning guests
+  const returningEmails = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      const e = (r.email || "").trim().toLowerCase();
+      if (e) counts.set(e, (counts.get(e) || 0) + 1);
+    }
+    return new Set([...counts].filter(([, c]) => c > 1).map(([e]) => e));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (q && !`${r.guest_name} ${r.email || ""}`.toLowerCase().includes(q)) return false;
+      if (monthF && !(r.check_in || "").startsWith(monthF)) return false;
+      if (sourceF !== "All" && r.source !== sourceF) return false;
+      if (statusF !== "All" && deriveStatus(r) !== statusF) return false;
+      return true;
+    });
+  }, [rows, search, monthF, sourceF, statusF]);
+
+  const hasFilters = !!search || !!monthF || sourceF !== "All" || statusF !== "All";
+  const clearFilters = () => {
+    setSearch("");
+    setMonthF("");
+    setSourceF("All");
+    setStatusF("All");
+  };
+
   return (
     <div className="max-w-[1180px] mx-auto">
       <PageTitle
         eyebrow="Pipeline"
         title="Guests Stay"
-        subtitle="Every saved inquiry. Click a guest to load their documents."
+        subtitle="Every saved inquiry. Search, filter, then click a guest to load their documents."
       />
+
+      {loaded && rows.length > 0 && (
+        <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name or email…"
+            className="fv-input !py-2.5 flex-1 min-w-[200px]"
+          />
+          <input
+            type="month"
+            value={monthF}
+            onChange={(e) => setMonthF(e.target.value)}
+            className="fv-input !py-2 !text-[13px] w-[150px]"
+          />
+          <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className="fv-input !py-2.5 !text-[13px] cursor-pointer appearance-none w-[170px]">
+            {SOURCE_FILTERS.map((s) => (
+              <option key={s} value={s}>{s === "All" ? "All sources" : s}</option>
+            ))}
+          </select>
+          <select value={statusF} onChange={(e) => setStatusF(e.target.value)} className="fv-input !py-2.5 !text-[13px] cursor-pointer appearance-none w-[130px]">
+            {STATUS_FILTERS.map((s) => (
+              <option key={s} value={s}>{s === "All" ? "All status" : s}</option>
+            ))}
+          </select>
+          {hasFilters && (
+            <button onClick={clearFilters} className="text-[12.5px] font-semibold text-[#7A8790] hover:text-fv-ink px-2">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {loaded && rows.length === 0 ? (
         <div className="fv-card p-10 text-center">
@@ -97,13 +182,19 @@ export function GuestsStay() {
             <Col />
           </div>
 
-          {rows.map((r) => {
+          {filtered.length === 0 && (
+            <div className="px-6 py-10 text-center text-[14px] text-[#9AA7AE]">
+              No bookings match these filters.
+            </div>
+          )}
+          {filtered.map((r) => {
             const fmt = makeFormatter(r.currency || "AUD", fxRates);
             const nights = nightsBetween(r.check_in, r.check_out);
             const inv = invoiceChip(r.grand_total, r.amount_paid);
             const pers = personalizeChip(r.personalize_status);
             const quoteSent = !!r.quote_sent_at;
             const cancelled = r.status === "Cancelled";
+            const returning = returningEmails.has((r.email || "").trim().toLowerCase());
             return (
               <div
                 key={r.id}
@@ -120,6 +211,11 @@ export function GuestsStay() {
                     {cancelled && (
                       <span className="text-[9.5px] font-bold tracking-[0.6px] uppercase text-[#B5503A] bg-[#FBEEEA] border border-[#E8C3B6] rounded-full px-2 py-0.5">
                         Cancelled
+                      </span>
+                    )}
+                    {!cancelled && returning && (
+                      <span className="text-[9.5px] font-bold tracking-[0.6px] uppercase text-fv-accent-deep bg-fv-accent-soft border border-fv-accent-soft-border rounded-full px-2 py-0.5">
+                        Returning
                       </span>
                     )}
                   </div>
